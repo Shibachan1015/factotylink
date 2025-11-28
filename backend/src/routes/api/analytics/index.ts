@@ -427,4 +427,253 @@ analytics.get("/sales-trend", adminAuth, async (c) => {
   });
 });
 
+// 在庫回転率分析
+analytics.get("/inventory-turnover", adminAuth, async (c) => {
+  const shopId = c.req.query("shop_id");
+
+  if (!shopId) {
+    return c.json({ error: "shop_idパラメータが必要です" }, 400);
+  }
+
+  // 過去12ヶ月の出荷データ
+  const now = new Date();
+  const twelveMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 11, 1);
+
+  // 商品別の出荷数量を取得
+  const { data: orderItems, error: itemsError } = await supabase
+    .from("order_items")
+    .select(`
+      product_id,
+      product_name,
+      quantity,
+      orders:order_id (shop_id, status, shipped_at)
+    `)
+    .eq("orders.shop_id", shopId)
+    .eq("orders.status", "shipped")
+    .gte("orders.shipped_at", twelveMonthsAgo.toISOString());
+
+  if (itemsError) {
+    console.error("Inventory turnover error:", itemsError);
+    return c.json({ error: "在庫回転率データの取得に失敗しました" }, 500);
+  }
+
+  // 現在の在庫
+  const { data: products } = await supabase
+    .from("products")
+    .select("id, title, sku, inventory_quantity, price")
+    .eq("shop_id", shopId);
+
+  // 商品別の出荷数を集計
+  const soldQuantities: Record<number, number> = {};
+  (orderItems || []).forEach((item) => {
+    if (!soldQuantities[item.product_id]) {
+      soldQuantities[item.product_id] = 0;
+    }
+    soldQuantities[item.product_id] += item.quantity || 0;
+  });
+
+  // 在庫回転率を計算
+  // 在庫回転率 = 年間出荷数 / 平均在庫 (簡易的に現在在庫を使用)
+  const inventoryAnalysis = (products || []).map((product) => {
+    const annualSold = soldQuantities[product.id] || 0;
+    const currentStock = product.inventory_quantity || 0;
+
+    // 在庫回転率（現在在庫がない場合は計算不可）
+    const turnoverRate = currentStock > 0 ? annualSold / currentStock : 0;
+
+    // 在庫日数（365日 / 回転率）
+    const daysOfInventory = turnoverRate > 0 ? Math.round(365 / turnoverRate) : null;
+
+    // 在庫金額
+    const stockValue = currentStock * (product.price || 0);
+
+    return {
+      product_id: product.id,
+      product_name: product.title,
+      sku: product.sku,
+      current_stock: currentStock,
+      annual_sold: annualSold,
+      turnover_rate: Math.round(turnoverRate * 10) / 10,
+      days_of_inventory: daysOfInventory,
+      stock_value: stockValue,
+      status: turnoverRate >= 4 ? "good" : turnoverRate >= 1 ? "normal" : "slow",
+    };
+  });
+
+  // 在庫金額合計
+  const totalStockValue = inventoryAnalysis.reduce((sum, p) => sum + p.stock_value, 0);
+
+  // 回転率順にソート
+  const sortedAnalysis = inventoryAnalysis.sort((a, b) => b.turnover_rate - a.turnover_rate);
+
+  // 滞留在庫（回転率1未満）
+  const slowMoving = inventoryAnalysis.filter((p) => p.turnover_rate < 1 && p.current_stock > 0);
+
+  return c.json({
+    products: sortedAnalysis,
+    summary: {
+      total_stock_value: totalStockValue,
+      total_products: products?.length || 0,
+      slow_moving_count: slowMoving.length,
+      slow_moving_value: slowMoving.reduce((sum, p) => sum + p.stock_value, 0),
+    },
+    slow_moving: slowMoving,
+  });
+});
+
+// 売掛金管理
+analytics.get("/receivables", adminAuth, async (c) => {
+  const shopId = c.req.query("shop_id");
+
+  if (!shopId) {
+    return c.json({ error: "shop_idパラメータが必要です" }, 400);
+  }
+
+  // 売掛金データを取得
+  const { data: receivables, error } = await supabase
+    .from("accounts_receivable")
+    .select(`
+      id,
+      amount,
+      due_date,
+      paid_at,
+      status,
+      created_at,
+      customer_id,
+      order_id,
+      customers:customer_id (company_name),
+      orders:order_id (order_number, total_amount)
+    `)
+    .eq("shop_id", shopId)
+    .order("due_date", { ascending: true });
+
+  if (error) {
+    console.error("Receivables fetch error:", error);
+    return c.json({ error: "売掛金データの取得に失敗しました" }, 500);
+  }
+
+  const now = new Date();
+
+  // ステータス別に分類
+  const unpaid = (receivables || []).filter((r) => r.status === "unpaid");
+  const overdue = (receivables || []).filter((r) => {
+    if (r.status !== "unpaid") return false;
+    return new Date(r.due_date) < now;
+  });
+  const paid = (receivables || []).filter((r) => r.status === "paid");
+
+  // 得意先別の売掛金残高
+  const customerBalances: Record<string, {
+    customer_id: string;
+    company_name: string;
+    total_unpaid: number;
+    overdue_amount: number;
+    oldest_due_date: string | null;
+    invoice_count: number;
+  }> = {};
+
+  unpaid.forEach((r) => {
+    const customerId = r.customer_id;
+    if (!customerBalances[customerId]) {
+      customerBalances[customerId] = {
+        customer_id: customerId,
+        company_name: (r.customers as { company_name: string })?.company_name || "不明",
+        total_unpaid: 0,
+        overdue_amount: 0,
+        oldest_due_date: null,
+        invoice_count: 0,
+      };
+    }
+
+    customerBalances[customerId].total_unpaid += r.amount || 0;
+    customerBalances[customerId].invoice_count += 1;
+
+    if (new Date(r.due_date) < now) {
+      customerBalances[customerId].overdue_amount += r.amount || 0;
+    }
+
+    if (!customerBalances[customerId].oldest_due_date ||
+        r.due_date < customerBalances[customerId].oldest_due_date!) {
+      customerBalances[customerId].oldest_due_date = r.due_date;
+    }
+  });
+
+  // 残高順にソート
+  const sortedBalances = Object.values(customerBalances).sort(
+    (a, b) => b.total_unpaid - a.total_unpaid
+  );
+
+  // 滞留日数別の集計
+  const agingBuckets = {
+    current: 0,      // 期日前
+    days_1_30: 0,    // 1-30日滞留
+    days_31_60: 0,   // 31-60日滞留
+    days_61_90: 0,   // 61-90日滞留
+    over_90: 0,      // 90日超滞留
+  };
+
+  unpaid.forEach((r) => {
+    const dueDate = new Date(r.due_date);
+    const daysOverdue = Math.floor((now.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    if (daysOverdue <= 0) {
+      agingBuckets.current += r.amount || 0;
+    } else if (daysOverdue <= 30) {
+      agingBuckets.days_1_30 += r.amount || 0;
+    } else if (daysOverdue <= 60) {
+      agingBuckets.days_31_60 += r.amount || 0;
+    } else if (daysOverdue <= 90) {
+      agingBuckets.days_61_90 += r.amount || 0;
+    } else {
+      agingBuckets.over_90 += r.amount || 0;
+    }
+  });
+
+  // 合計
+  const totalUnpaid = unpaid.reduce((sum, r) => sum + (r.amount || 0), 0);
+  const totalOverdue = overdue.reduce((sum, r) => sum + (r.amount || 0), 0);
+
+  return c.json({
+    summary: {
+      total_unpaid: totalUnpaid,
+      total_overdue: totalOverdue,
+      unpaid_count: unpaid.length,
+      overdue_count: overdue.length,
+    },
+    aging: agingBuckets,
+    by_customer: sortedBalances,
+    overdue_list: overdue.map((r) => ({
+      id: r.id,
+      customer_name: (r.customers as { company_name: string })?.company_name || "不明",
+      order_number: (r.orders as { order_number: string })?.order_number || "-",
+      amount: r.amount,
+      due_date: r.due_date,
+      days_overdue: Math.floor((now.getTime() - new Date(r.due_date).getTime()) / (1000 * 60 * 60 * 24)),
+    })),
+  });
+});
+
+// 売掛金ステータス更新
+analytics.patch("/receivables/:id", adminAuth, async (c) => {
+  const receivableId = c.req.param("id");
+  const body = await c.req.json();
+
+  const { data, error } = await supabase
+    .from("accounts_receivable")
+    .update({
+      status: body.status,
+      paid_at: body.status === "paid" ? new Date().toISOString() : null,
+    })
+    .eq("id", receivableId)
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Receivable update error:", error);
+    return c.json({ error: "売掛金の更新に失敗しました" }, 500);
+  }
+
+  return c.json({ message: "売掛金を更新しました", receivable: data });
+});
+
 export default analytics;
