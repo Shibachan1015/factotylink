@@ -25,11 +25,11 @@
 
 
 
-# ⚠️ 要取得: Supabase Dashboardから取得してください
-# Settings → API → service_role key
+
+#### Settings → API → service_role key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-# Shopify
+#### Shopify
 SHOPIFY_API_KEY=your_shopify_api_key
 SHOPIFY_API_SECRET=your_shopify_api_secret
 SHOPIFY_SHOP_DOMAIN=your-shop.myshopify.com
