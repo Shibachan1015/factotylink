@@ -10,6 +10,7 @@ import {
   Banner,
   BlockStack,
   InlineStack,
+  Button,
 } from "@shopify/polaris";
 import type { OrderStatus } from "../../../types.ts";
 
@@ -76,6 +77,30 @@ export default function OrderDetailPage() {
     };
     const config = statusMap[status];
     return <Badge tone={config.tone}>{config.label}</Badge>;
+  };
+
+  const openDocument = (type: "invoice" | "delivery-note") => {
+    const token = localStorage.getItem("customerToken");
+    // 新しいウィンドウで帳票を開く
+    const url = `/api/documents/customer/${id}/${type}`;
+    const win = window.open("", "_blank");
+    if (win) {
+      fetch(url, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("帳票の取得に失敗しました");
+          return res.text();
+        })
+        .then((html) => {
+          win.document.write(html);
+          win.document.close();
+        })
+        .catch((err) => {
+          win.close();
+          alert(err.message);
+        });
+    }
   };
 
   if (loading) {
@@ -147,6 +172,27 @@ export default function OrderDetailPage() {
             </div>
           </Card>
         </Layout.Section>
+
+        {/* 帳票ダウンロードセクション */}
+        {(order.status === "completed" || order.status === "shipped") && (
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="300">
+                <Text variant="headingMd" as="h3">帳票</Text>
+                <InlineStack gap="200">
+                  <Button onClick={() => openDocument("delivery-note")}>
+                    納品書を表示
+                  </Button>
+                  {order.status === "shipped" && (
+                    <Button onClick={() => openDocument("invoice")}>
+                      請求書を表示
+                    </Button>
+                  )}
+                </InlineStack>
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+        )}
       </Layout>
     </Page>
   );
