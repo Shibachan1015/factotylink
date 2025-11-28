@@ -41,8 +41,8 @@ export default function CustomerLogin() {
       localStorage.setItem("customerToken", data.token);
       localStorage.setItem("customer", JSON.stringify(data.customer));
 
-      // 商品一覧ページにリダイレクト
-      navigate("/customer/products");
+      // ダッシュボードにリダイレクト
+      navigate("/customer/dashboard");
     } catch (err) {
       setError("ログイン処理中にエラーが発生しました");
       setLoading(false);
