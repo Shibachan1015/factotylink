@@ -263,6 +263,29 @@ export default function AdminAnalyticsPage() {
     return `${prefix}${rate}%`;
   };
 
+  const openSalesReport = () => {
+    const params = new URLSearchParams();
+    params.append("shop_id", shopId);
+    params.append("period", period);
+
+    const token = localStorage.getItem("adminToken");
+    fetch(`/api/admin/analytics/report/pdf?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.text())
+      .then((html) => {
+        const win = window.open("", "_blank");
+        if (win) {
+          win.document.write(html);
+          win.document.close();
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to open sales report:", err);
+        alert("売上レポートの生成に失敗しました");
+      });
+  };
+
   const tabs = [
     { id: "dashboard", content: "サマリー" },
     { id: "sales", content: "売上推移" },
@@ -285,7 +308,15 @@ export default function AdminAnalyticsPage() {
   }
 
   return (
-    <Page title="経営分析">
+    <Page
+      title="経営分析"
+      secondaryActions={[
+        {
+          content: "売上レポート出力",
+          onAction: openSalesReport,
+        },
+      ]}
+    >
       <BlockStack gap="400">
         {error && (
           <Banner tone="critical" onDismiss={() => setError(null)}>

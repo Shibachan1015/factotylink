@@ -28,6 +28,7 @@ import AdminSuppliersPage from "./pages/admin/suppliers/index.tsx";
 import SupplierFormPage from "./pages/admin/suppliers/[id].tsx";
 import AdminPurchaseOrdersPage from "./pages/admin/purchase-orders/index.tsx";
 import PurchaseOrderFormPage from "./pages/admin/purchase-orders/[id].tsx";
+import AdminCategoriesPage from "./pages/admin/categories/index.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 
 function App() {
@@ -236,6 +237,14 @@ function App() {
           element={
             <ProtectedRoute requireAdmin>
               <PurchaseOrderFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/categories"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminCategoriesPage />
             </ProtectedRoute>
           }
         />

@@ -4,7 +4,9 @@ import {
   generateDeliveryNoteHTML,
   generateInvoiceHTML,
   generateLabelHTML,
+  generateManufacturingOrderHTML,
   type DocumentData,
+  type ManufacturingOrderData,
 } from "../../../services/pdf-service.ts";
 import { adminAuth, customerAuth } from "../../../middleware/auth.ts";
 
@@ -171,6 +173,139 @@ documents.get("/customer/:orderId/delivery-note", customerAuth, async (c) => {
   } catch (error) {
     console.error("Generate customer delivery note error:", error);
     return c.json({ error: "納品書生成中にエラーが発生しました" }, 500);
+  }
+});
+
+// 製造指示書を表示
+documents.get("/manufacturing-order/:orderId", adminAuth, async (c) => {
+  try {
+    const orderId = c.req.param("orderId");
+
+    // 注文情報を取得
+    const { data: orderData, error: orderError } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        order_number,
+        ordered_at,
+        requested_delivery_date,
+        notes,
+        shop_id,
+        customers (company_name)
+      `)
+      .eq("id", orderId)
+      .single();
+
+    if (orderError || !orderData) {
+      return c.json({ error: "注文が見つかりません" }, 404);
+    }
+
+    // 注文明細を取得
+    const { data: orderItems, error: itemsError } = await supabase
+      .from("order_items")
+      .select(`
+        product_id,
+        product_name,
+        sku,
+        quantity,
+        notes
+      `)
+      .eq("order_id", orderId);
+
+    if (itemsError) {
+      return c.json({ error: "注文明細の取得に失敗しました" }, 500);
+    }
+
+    // 各商品のBOM（部品表）を取得
+    const productIds = (orderItems || []).map((item) => item.product_id);
+    const { data: bomData } = productIds.length > 0
+      ? await supabase
+          .from("bom")
+          .select(`
+            product_id,
+            quantity,
+            materials (
+              id,
+              name,
+              material_code,
+              unit,
+              current_stock
+            )
+          `)
+          .in("product_id", productIds)
+      : { data: [] };
+
+    // ショップ設定を取得
+    const { data: shopSettings } = await supabase
+      .from("shop_settings")
+      .select("*")
+      .eq("shop_id", orderData.shop_id)
+      .single();
+
+    const shop = {
+      company_name: shopSettings?.company_name || "店舗名未設定",
+      address: shopSettings?.address || "",
+      phone: shopSettings?.phone || "",
+      invoice_number: shopSettings?.invoice_number || "",
+    };
+
+    // BOMデータを商品ごとにグループ化
+    const bomByProduct: Record<number, ManufacturingOrderData["items"][0]["bom"]> = {};
+    (bomData || []).forEach((bom) => {
+      if (!bomByProduct[bom.product_id]) {
+        bomByProduct[bom.product_id] = [];
+      }
+      const material = bom.materials as {
+        id: string;
+        name: string;
+        material_code: string | null;
+        unit: string;
+        current_stock: number;
+      };
+
+      if (material) {
+        const orderItem = orderItems?.find((i) => i.product_id === bom.product_id);
+        const requiredTotal = bom.quantity * (orderItem?.quantity || 1);
+
+        bomByProduct[bom.product_id].push({
+          material_name: material.name,
+          material_code: material.material_code,
+          unit: material.unit,
+          required_quantity: bom.quantity,
+          current_stock: material.current_stock,
+          is_sufficient: material.current_stock >= requiredTotal,
+        });
+      }
+    });
+
+    // 製造指示書データを構築
+    const manufacturingData: ManufacturingOrderData = {
+      shop: shop as ManufacturingOrderData["shop"],
+      order: {
+        id: orderData.id,
+        order_number: orderData.order_number,
+        ordered_at: orderData.ordered_at,
+        requested_delivery_date: orderData.requested_delivery_date,
+        notes: orderData.notes,
+        customer: {
+          company_name: (orderData.customers as { company_name: string })?.company_name || "不明",
+        },
+      },
+      items: (orderItems || []).map((item) => ({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        sku: item.sku,
+        quantity: item.quantity,
+        notes: item.notes,
+        bom: bomByProduct[item.product_id] || [],
+      })),
+    };
+
+    const html = generateManufacturingOrderHTML(manufacturingData);
+    return c.html(html);
+  } catch (error) {
+    console.error("Generate manufacturing order error:", error);
+    return c.json({ error: "製造指示書生成中にエラーが発生しました" }, 500);
   }
 });
 

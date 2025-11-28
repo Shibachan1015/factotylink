@@ -439,6 +439,453 @@ export function generatePurchaseOrderHTML(data: PurchaseOrderData): string {
   `.trim();
 }
 
+// 製造指示書データ型
+export interface ManufacturingOrderData {
+  shop: Shop;
+  order: {
+    id: string;
+    order_number: string;
+    ordered_at: string;
+    requested_delivery_date: string | null;
+    notes: string | null;
+    customer: {
+      company_name: string;
+    };
+  };
+  items: Array<{
+    product_id: number;
+    product_name: string;
+    sku: string | null;
+    quantity: number;
+    notes: string | null;
+    bom: Array<{
+      material_name: string;
+      material_code: string | null;
+      unit: string;
+      required_quantity: number;
+      current_stock: number;
+      is_sufficient: boolean;
+    }>;
+  }>;
+}
+
+// 製造指示書HTML生成
+export function generateManufacturingOrderHTML(data: ManufacturingOrderData): string {
+  const { shop, order, items } = data;
+  const orderDate = new Date(order.ordered_at).toLocaleDateString("ja-JP");
+  const deliveryDate = order.requested_delivery_date
+    ? new Date(order.requested_delivery_date).toLocaleDateString("ja-JP")
+    : "未定";
+  const printDate = new Date().toLocaleDateString("ja-JP");
+
+  return `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>製造指示書 - ${order.order_number}</title>
+  <style>
+    body { font-family: "Hiragino Sans", "Meiryo", sans-serif; padding: 20px; color: #333; font-size: 12px; }
+    .header { display: flex; justify-content: space-between; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+    .shop-info { text-align: right; font-size: 11px; }
+    .title { font-size: 22px; font-weight: bold; text-align: center; margin: 15px 0; }
+
+    .order-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 25px; }
+    .info-box { border: 1px solid #ddd; padding: 10px; border-radius: 4px; }
+    .info-box h3 { margin: 0 0 8px 0; font-size: 13px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+    .info-row { display: flex; justify-content: space-between; margin: 5px 0; }
+    .info-label { color: #666; }
+    .info-value { font-weight: bold; }
+
+    .product-section { margin-bottom: 30px; page-break-inside: avoid; border: 1px solid #333; }
+    .product-header { background: #f0f0f0; padding: 10px; border-bottom: 1px solid #333; }
+    .product-name { font-size: 16px; font-weight: bold; }
+    .product-meta { color: #666; margin-top: 5px; }
+    .product-body { padding: 10px; }
+
+    .bom-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .bom-table th, .bom-table td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+    .bom-table th { background: #f5f5f5; font-weight: bold; }
+    .bom-table .number { text-align: right; }
+    .bom-table .status-ok { color: #28a745; }
+    .bom-table .status-ng { color: #dc3545; font-weight: bold; }
+
+    .checkbox-area { margin-top: 15px; }
+    .checkbox-row { display: flex; align-items: center; margin: 8px 0; }
+    .checkbox { width: 18px; height: 18px; border: 1px solid #333; margin-right: 10px; display: inline-block; }
+
+    .notes-box { background: #fffde7; border: 1px solid #ffd600; padding: 10px; margin-top: 15px; border-radius: 4px; }
+    .notes-box h4 { margin: 0 0 5px 0; color: #f57f17; }
+
+    .stamp-area { margin-top: 30px; display: flex; justify-content: flex-end; gap: 30px; }
+    .stamp-box { text-align: center; }
+    .stamp-box .label { font-size: 10px; margin-bottom: 3px; }
+    .stamp-box .box { width: 60px; height: 60px; border: 1px solid #333; }
+
+    .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; }
+
+    @media print {
+      body { padding: 10px; }
+      .product-section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <div class="title">製 造 指 示 書</div>
+    </div>
+    <div class="shop-info">
+      <div style="font-weight: bold;">${shop.company_name}</div>
+      <div>印刷日: ${printDate}</div>
+    </div>
+  </div>
+
+  <div class="order-info">
+    <div class="info-box">
+      <h3>注文情報</h3>
+      <div class="info-row">
+        <span class="info-label">注文番号:</span>
+        <span class="info-value">${order.order_number}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">受注日:</span>
+        <span class="info-value">${orderDate}</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">希望納期:</span>
+        <span class="info-value">${deliveryDate}</span>
+      </div>
+    </div>
+    <div class="info-box">
+      <h3>得意先情報</h3>
+      <div class="info-row">
+        <span class="info-label">得意先名:</span>
+        <span class="info-value">${order.customer.company_name}</span>
+      </div>
+    </div>
+  </div>
+
+  ${order.notes ? `
+    <div class="notes-box">
+      <h4>注文備考</h4>
+      <div>${order.notes}</div>
+    </div>
+  ` : ""}
+
+  ${items.map((item, index) => `
+    <div class="product-section">
+      <div class="product-header">
+        <div class="product-name">${index + 1}. ${item.product_name}</div>
+        <div class="product-meta">
+          SKU: ${item.sku || "-"} | 製造数量: <strong>${item.quantity}</strong>
+        </div>
+      </div>
+      <div class="product-body">
+        ${item.bom.length > 0 ? `
+          <table class="bom-table">
+            <thead>
+              <tr>
+                <th>材料名</th>
+                <th>品番</th>
+                <th class="number">単位</th>
+                <th class="number">必要数量</th>
+                <th class="number">現在在庫</th>
+                <th>在庫状況</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${item.bom.map((bom) => `
+                <tr>
+                  <td>${bom.material_name}</td>
+                  <td>${bom.material_code || "-"}</td>
+                  <td class="number">${bom.unit}</td>
+                  <td class="number">${(bom.required_quantity * item.quantity).toLocaleString()}</td>
+                  <td class="number">${bom.current_stock.toLocaleString()}</td>
+                  <td class="${bom.is_sufficient ? 'status-ok' : 'status-ng'}">
+                    ${bom.is_sufficient ? "OK" : "不足"}
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        ` : `
+          <p style="color: #999;">BOM（部品表）が登録されていません</p>
+        `}
+
+        <div class="checkbox-area">
+          <div class="checkbox-row">
+            <span class="checkbox"></span>
+            <span>材料準備完了</span>
+          </div>
+          <div class="checkbox-row">
+            <span class="checkbox"></span>
+            <span>製造開始</span>
+          </div>
+          <div class="checkbox-row">
+            <span class="checkbox"></span>
+            <span>品質検査完了</span>
+          </div>
+          <div class="checkbox-row">
+            <span class="checkbox"></span>
+            <span>製造完了</span>
+          </div>
+        </div>
+
+        ${item.notes ? `
+          <div class="notes-box" style="margin-top: 10px;">
+            <h4>製造備考</h4>
+            <div>${item.notes}</div>
+          </div>
+        ` : ""}
+      </div>
+    </div>
+  `).join("")}
+
+  <div class="stamp-area">
+    <div class="stamp-box">
+      <div class="label">製造責任者</div>
+      <div class="box"></div>
+    </div>
+    <div class="stamp-box">
+      <div class="label">品質管理</div>
+      <div class="box"></div>
+    </div>
+    <div class="stamp-box">
+      <div class="label">担当者</div>
+      <div class="box"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>この製造指示書は ${shop.company_name} の内部文書です。</p>
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
+// 売上レポートデータ型
+export interface SalesReportData {
+  shop: Shop;
+  period: {
+    start: string;
+    end: string;
+    label: string; // "2024年11月" など
+  };
+  summary: {
+    total_sales: number;
+    total_cost: number;
+    gross_profit: number;
+    gross_profit_rate: number;
+    order_count: number;
+  };
+  salesByPeriod: Array<{
+    period: string;
+    total_sales: number;
+    total_cost: number;
+    gross_profit: number;
+    order_count: number;
+  }>;
+  productStats: Array<{
+    product_name: string;
+    total_quantity: number;
+    total_sales: number;
+    total_cost: number;
+    gross_profit: number;
+    gross_profit_rate: number;
+  }>;
+  customerStats: Array<{
+    company_name: string;
+    total_orders: number;
+    total_sales: number;
+    gross_profit: number;
+    gross_profit_rate: number;
+  }>;
+}
+
+// 売上レポートHTML生成
+export function generateSalesReportHTML(data: SalesReportData): string {
+  const { shop, period, summary, salesByPeriod, productStats, customerStats } = data;
+  const generatedDate = new Date().toLocaleDateString("ja-JP");
+
+  const formatCurrency = (amount: number) => `¥${amount.toLocaleString()}`;
+  const formatRate = (rate: number) => `${rate.toFixed(1)}%`;
+
+  return `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>売上レポート - ${period.label}</title>
+  <style>
+    body { font-family: "Hiragino Sans", "Meiryo", sans-serif; padding: 20px; color: #333; }
+    .header { display: flex; justify-content: space-between; margin-bottom: 30px; border-bottom: 2px solid #333; padding-bottom: 15px; }
+    .shop-info { text-align: right; font-size: 12px; }
+    .title { font-size: 24px; font-weight: bold; text-align: center; margin: 20px 0 30px; }
+    .period-info { text-align: center; font-size: 18px; color: #666; margin-bottom: 30px; }
+
+    .summary-cards { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 40px; }
+    .summary-card { background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 8px; padding: 15px; text-align: center; }
+    .summary-card .label { font-size: 12px; color: #666; margin-bottom: 5px; }
+    .summary-card .value { font-size: 20px; font-weight: bold; }
+    .summary-card .value.positive { color: #28a745; }
+    .summary-card .value.negative { color: #dc3545; }
+
+    .section { margin-bottom: 40px; page-break-inside: avoid; }
+    .section-title { font-size: 18px; font-weight: bold; border-bottom: 2px solid #007bff; padding-bottom: 8px; margin-bottom: 15px; }
+
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 10px; border: 1px solid #ddd; text-align: left; font-size: 12px; }
+    th { background: #f5f5f5; font-weight: bold; }
+    .number { text-align: right; }
+    .rank { text-align: center; width: 40px; }
+
+    .footer { margin-top: 40px; text-align: center; font-size: 11px; color: #999; border-top: 1px solid #ddd; padding-top: 15px; }
+
+    @media print {
+      body { padding: 0; }
+      .summary-cards { grid-template-columns: repeat(5, 1fr); }
+      .section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div>
+      <h2 style="margin: 0;">売上レポート</h2>
+      <div style="color: #666; font-size: 12px;">Sales Report</div>
+    </div>
+    <div class="shop-info">
+      <div style="font-weight: bold;">${shop.company_name}</div>
+      <div>作成日: ${generatedDate}</div>
+    </div>
+  </div>
+
+  <div class="period-info">
+    対象期間: ${period.start} ～ ${period.end}
+  </div>
+
+  <div class="summary-cards">
+    <div class="summary-card">
+      <div class="label">総売上</div>
+      <div class="value">${formatCurrency(summary.total_sales)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">総原価</div>
+      <div class="value">${formatCurrency(summary.total_cost)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">粗利益</div>
+      <div class="value ${summary.gross_profit >= 0 ? 'positive' : 'negative'}">${formatCurrency(summary.gross_profit)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">粗利率</div>
+      <div class="value ${summary.gross_profit_rate >= 30 ? 'positive' : summary.gross_profit_rate < 20 ? 'negative' : ''}">${formatRate(summary.gross_profit_rate)}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">受注件数</div>
+      <div class="value">${summary.order_count}件</div>
+    </div>
+  </div>
+
+  ${salesByPeriod.length > 0 ? `
+  <div class="section">
+    <h3 class="section-title">期間別売上推移</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>期間</th>
+          <th class="number">売上</th>
+          <th class="number">原価</th>
+          <th class="number">粗利益</th>
+          <th class="number">件数</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${salesByPeriod.slice(0, 12).map((item) => `
+          <tr>
+            <td>${item.period}</td>
+            <td class="number">${formatCurrency(item.total_sales)}</td>
+            <td class="number">${formatCurrency(item.total_cost)}</td>
+            <td class="number">${formatCurrency(item.gross_profit)}</td>
+            <td class="number">${item.order_count}件</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  </div>
+  ` : ""}
+
+  ${productStats.length > 0 ? `
+  <div class="section">
+    <h3 class="section-title">商品別売上ランキング（上位20）</h3>
+    <table>
+      <thead>
+        <tr>
+          <th class="rank">順位</th>
+          <th>商品名</th>
+          <th class="number">販売数</th>
+          <th class="number">売上</th>
+          <th class="number">粗利益</th>
+          <th class="number">粗利率</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${productStats.slice(0, 20).map((item, index) => `
+          <tr>
+            <td class="rank">${index + 1}</td>
+            <td>${item.product_name}</td>
+            <td class="number">${item.total_quantity.toLocaleString()}</td>
+            <td class="number">${formatCurrency(item.total_sales)}</td>
+            <td class="number">${formatCurrency(item.gross_profit)}</td>
+            <td class="number">${formatRate(item.gross_profit_rate)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  </div>
+  ` : ""}
+
+  ${customerStats.length > 0 ? `
+  <div class="section">
+    <h3 class="section-title">得意先別売上ランキング（上位20）</h3>
+    <table>
+      <thead>
+        <tr>
+          <th class="rank">順位</th>
+          <th>得意先名</th>
+          <th class="number">受注数</th>
+          <th class="number">売上</th>
+          <th class="number">粗利益</th>
+          <th class="number">粗利率</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${customerStats.slice(0, 20).map((item, index) => `
+          <tr>
+            <td class="rank">${index + 1}</td>
+            <td>${item.company_name}</td>
+            <td class="number">${item.total_orders}件</td>
+            <td class="number">${formatCurrency(item.total_sales)}</td>
+            <td class="number">${formatCurrency(item.gross_profit)}</td>
+            <td class="number">${formatRate(item.gross_profit_rate)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  </div>
+  ` : ""}
+
+  <div class="footer">
+    <p>このレポートは ${shop.company_name} の売上データに基づいて自動生成されました。</p>
+    <p>Generated by FactoryLink BtoB Platform</p>
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
 // 帳票番号生成
 export function generateDocumentNumber(
   type: "delivery_note" | "invoice" | "label" | "purchase_order",

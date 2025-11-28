@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { supabase } from "../../../services/supabase-service.ts";
 import { adminAuth } from "../../../middleware/auth.ts";
+import { generateSalesReportHTML, type SalesReportData } from "../../../services/pdf-service.ts";
 
 const analytics = new Hono();
 
@@ -674,6 +675,225 @@ analytics.patch("/receivables/:id", adminAuth, async (c) => {
   }
 
   return c.json({ message: "売掛金を更新しました", receivable: data });
+});
+
+// 売上レポートPDF生成
+analytics.get("/report/pdf", adminAuth, async (c) => {
+  const shopId = c.req.query("shop_id");
+  const startDate = c.req.query("start_date");
+  const endDate = c.req.query("end_date");
+  const period = c.req.query("period") || "monthly";
+
+  if (!shopId) {
+    return c.json({ error: "shop_idパラメータが必要です" }, 400);
+  }
+
+  // 店舗情報取得
+  const { data: shopData } = await supabase
+    .from("shop_settings")
+    .select("*")
+    .eq("shop_id", shopId)
+    .single();
+
+  const shop = {
+    company_name: shopData?.company_name || "店舗名未設定",
+    address: shopData?.address || "",
+    phone: shopData?.phone || "",
+    invoice_number: shopData?.invoice_number || "",
+  };
+
+  // 期間の設定
+  let start: Date;
+  let end: Date;
+  let periodLabel: string;
+
+  if (startDate && endDate) {
+    start = new Date(startDate);
+    end = new Date(endDate);
+    periodLabel = `${start.toLocaleDateString("ja-JP")} - ${end.toLocaleDateString("ja-JP")}`;
+  } else {
+    // デフォルトは今月
+    const now = new Date();
+    start = new Date(now.getFullYear(), now.getMonth(), 1);
+    end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    periodLabel = `${now.getFullYear()}年${now.getMonth() + 1}月`;
+  }
+
+  // 出荷済み注文を取得
+  const { data: orders, error: ordersError } = await supabase
+    .from("orders")
+    .select(`
+      id,
+      total_amount,
+      total_cost,
+      gross_profit,
+      shipped_at,
+      customer_id,
+      customers:customer_id (company_name)
+    `)
+    .eq("shop_id", shopId)
+    .eq("status", "shipped")
+    .gte("shipped_at", start.toISOString())
+    .lte("shipped_at", end.toISOString())
+    .order("shipped_at", { ascending: false });
+
+  if (ordersError) {
+    console.error("Orders fetch error:", ordersError);
+    return c.json({ error: "注文データの取得に失敗しました" }, 500);
+  }
+
+  // 注文明細を取得
+  const orderIds = (orders || []).map((o) => o.id);
+  const { data: orderItems } = orderIds.length > 0
+    ? await supabase
+        .from("order_items")
+        .select("*")
+        .in("order_id", orderIds)
+    : { data: [] };
+
+  // サマリー計算
+  const totalSales = (orders || []).reduce((sum, o) => sum + (o.total_amount || 0), 0);
+  const totalCost = (orders || []).reduce((sum, o) => sum + (o.total_cost || 0), 0);
+  const totalGrossProfit = (orders || []).reduce((sum, o) => sum + (o.gross_profit || 0), 0);
+  const grossProfitRate = totalSales > 0 ? (totalGrossProfit / totalSales) * 100 : 0;
+
+  // 期間別集計
+  const salesByPeriod: Record<string, {
+    period: string;
+    total_sales: number;
+    total_cost: number;
+    gross_profit: number;
+    order_count: number;
+  }> = {};
+
+  (orders || []).forEach((order) => {
+    if (!order.shipped_at) return;
+
+    const date = new Date(order.shipped_at);
+    let periodKey: string;
+
+    if (period === "daily") {
+      periodKey = date.toISOString().split("T")[0];
+    } else if (period === "weekly") {
+      const weekStart = new Date(date);
+      weekStart.setDate(date.getDate() - date.getDay() + 1);
+      periodKey = weekStart.toISOString().split("T")[0];
+    } else {
+      periodKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+    }
+
+    if (!salesByPeriod[periodKey]) {
+      salesByPeriod[periodKey] = {
+        period: periodKey,
+        total_sales: 0,
+        total_cost: 0,
+        gross_profit: 0,
+        order_count: 0,
+      };
+    }
+
+    salesByPeriod[periodKey].total_sales += order.total_amount || 0;
+    salesByPeriod[periodKey].total_cost += order.total_cost || 0;
+    salesByPeriod[periodKey].gross_profit += order.gross_profit || 0;
+    salesByPeriod[periodKey].order_count += 1;
+  });
+
+  // 商品別集計
+  const productStats: Record<number, {
+    product_name: string;
+    total_quantity: number;
+    total_sales: number;
+    total_cost: number;
+    gross_profit: number;
+    gross_profit_rate: number;
+  }> = {};
+
+  (orderItems || []).forEach((item) => {
+    if (!item.product_id) return;
+
+    if (!productStats[item.product_id]) {
+      productStats[item.product_id] = {
+        product_name: item.product_name || "不明",
+        total_quantity: 0,
+        total_sales: 0,
+        total_cost: 0,
+        gross_profit: 0,
+        gross_profit_rate: 0,
+      };
+    }
+
+    productStats[item.product_id].total_quantity += item.quantity || 0;
+    productStats[item.product_id].total_sales += item.subtotal || 0;
+    productStats[item.product_id].total_cost += item.cost_subtotal || 0;
+    productStats[item.product_id].gross_profit += item.gross_profit || 0;
+  });
+
+  Object.values(productStats).forEach((stat) => {
+    stat.gross_profit_rate = stat.total_sales > 0
+      ? (stat.gross_profit / stat.total_sales) * 100
+      : 0;
+  });
+
+  // 得意先別集計
+  const customerStats: Record<string, {
+    company_name: string;
+    total_orders: number;
+    total_sales: number;
+    gross_profit: number;
+    gross_profit_rate: number;
+  }> = {};
+
+  (orders || []).forEach((order) => {
+    if (!order.customer_id) return;
+
+    if (!customerStats[order.customer_id]) {
+      customerStats[order.customer_id] = {
+        company_name: (order.customers as { company_name: string })?.company_name || "不明",
+        total_orders: 0,
+        total_sales: 0,
+        gross_profit: 0,
+        gross_profit_rate: 0,
+      };
+    }
+
+    customerStats[order.customer_id].total_orders += 1;
+    customerStats[order.customer_id].total_sales += order.total_amount || 0;
+    customerStats[order.customer_id].gross_profit += order.gross_profit || 0;
+  });
+
+  Object.values(customerStats).forEach((stat) => {
+    stat.gross_profit_rate = stat.total_sales > 0
+      ? (stat.gross_profit / stat.total_sales) * 100
+      : 0;
+  });
+
+  // レポートデータ構築
+  const reportData: SalesReportData = {
+    shop: shop as SalesReportData["shop"],
+    period: {
+      start: start.toLocaleDateString("ja-JP"),
+      end: end.toLocaleDateString("ja-JP"),
+      label: periodLabel,
+    },
+    summary: {
+      total_sales: totalSales,
+      total_cost: totalCost,
+      gross_profit: totalGrossProfit,
+      gross_profit_rate: grossProfitRate,
+      order_count: orders?.length || 0,
+    },
+    salesByPeriod: Object.values(salesByPeriod).sort((a, b) => b.period.localeCompare(a.period)),
+    productStats: Object.values(productStats).sort((a, b) => b.total_sales - a.total_sales),
+    customerStats: Object.values(customerStats).sort((a, b) => b.total_sales - a.total_sales),
+  };
+
+  const html = generateSalesReportHTML(reportData);
+
+  return new Response(html, {
+    headers: {
+      "Content-Type": "text/html; charset=utf-8",
+    },
+  });
 });
 
 export default analytics;

@@ -115,6 +115,10 @@ app.route("/api/admin/purchase-orders", purchaseOrdersRoutes);
 import customerPricesRoutes from "./routes/api/customer-prices/index.ts";
 app.route("/api/admin/customer-prices", customerPricesRoutes);
 
+// 商品カテゴリルート
+import categoriesRoutes from "./routes/api/categories/index.ts";
+app.route("/api/admin/categories", categoriesRoutes);
+
 const port = parseInt(Deno.env.get("PORT") || "8000");
 console.log(`🚀 Server running on http://localhost:${port}`);
 

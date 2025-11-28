@@ -58,6 +58,10 @@ export default function Layout({ children, isAdmin = false }: LayoutProps) {
       url: "/admin/products",
     },
     {
+      label: "カテゴリ管理",
+      url: "/admin/categories",
+    },
+    {
       label: "在庫管理",
       url: "/admin/inventory",
     },

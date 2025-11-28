@@ -103,6 +103,35 @@ export default function AdminOrderDetailPage() {
     }
   };
 
+  const handleOpenManufacturingOrder = async () => {
+    if (!order) return;
+
+    setGenerating("manufacturing");
+    setError(null);
+
+    try {
+      const token = localStorage.getItem("adminToken");
+      const response = await fetch(`/api/documents/manufacturing-order/${order.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (response.ok) {
+        const html = await response.text();
+        const newWindow = window.open();
+        if (newWindow) {
+          newWindow.document.write(html);
+          newWindow.document.close();
+        }
+      } else {
+        setError("製造指示書の表示に失敗しました");
+      }
+    } catch (err) {
+      setError("製造指示書生成中にエラーが発生しました");
+    } finally {
+      setGenerating(null);
+    }
+  };
+
   const handleGenerateDocument = async (type: "delivery_note" | "invoice" | "label") => {
     if (!order) return;
 
@@ -193,6 +222,11 @@ export default function AdminOrderDetailPage() {
         disabled: !status || status === order.status,
       }}
       secondaryActions={[
+        {
+          content: "製造指示書",
+          onAction: handleOpenManufacturingOrder,
+          loading: generating === "manufacturing",
+        },
         {
           content: "納品書",
           onAction: () => handleGenerateDocument("delivery_note"),
