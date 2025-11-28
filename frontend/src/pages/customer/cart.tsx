@@ -8,7 +8,8 @@ import {
   Thumbnail,
   Text,
   Button,
-  Stack,
+  BlockStack,
+  InlineStack,
   TextField,
   Banner,
 } from "@shopify/polaris";
@@ -82,9 +83,9 @@ export default function CartPage() {
       }}
     >
       <Card>
-        <Stack vertical spacing="loose">
+        <BlockStack gap="400">
           {error && (
-            <Banner status="critical" onDismiss={() => setError(null)}>
+            <Banner tone="critical" onDismiss={() => setError(null)}>
               {error}
             </Banner>
           )}
@@ -101,8 +102,8 @@ export default function CartPage() {
                   id={String(item.product_id)}
                   media={media}
                 >
-                  <Stack>
-                    <Stack.Item fill>
+                  <InlineStack align="space-between" blockAlign="center" gap="400">
+                    <div style={{flexGrow: 1}}>
                       <Text variant="bodyMd" fontWeight="bold" as="h3">
                         {item.product_name}
                       </Text>
@@ -115,9 +116,9 @@ export default function CartPage() {
                         ¥{item.price.toLocaleString()} × {item.quantity} = ¥
                         {(item.price * item.quantity).toLocaleString()}
                       </Text>
-                    </Stack.Item>
-                    <Stack.Item>
-                      <Stack>
+                    </div>
+                    <div>
+                      <InlineStack gap="200">
                         <Button
                           onClick={() =>
                             updateQuantity(
@@ -142,14 +143,14 @@ export default function CartPage() {
                           +
                         </Button>
                         <Button
-                          destructive
+                          tone="critical"
                           onClick={() => removeItem(item.product_id)}
                         >
                           削除
                         </Button>
-                      </Stack>
-                    </Stack.Item>
-                  </Stack>
+                      </InlineStack>
+                    </div>
+                  </InlineStack>
                 </ResourceItem>
               );
             }}
@@ -161,19 +162,18 @@ export default function CartPage() {
             multiline={3}
             placeholder="注文に関する備考があれば入力してください"
           />
-          <Card sectioned>
-            <Stack distribution="equalSpacing">
+          <Card>
+            <InlineStack align="space-between">
               <Text variant="headingMd" as="h3">
                 合計
               </Text>
               <Text variant="headingLg" as="p">
                 ¥{getTotal().toLocaleString()}
               </Text>
-            </Stack>
+            </InlineStack>
           </Card>
-        </Stack>
+        </BlockStack>
       </Card>
     </Page>
   );
 }
-

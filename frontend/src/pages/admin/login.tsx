@@ -11,7 +11,7 @@ import {
   BlockStack,
 } from "@shopify/polaris";
 
-export default function CustomerLogin() {
+export default function AdminLogin() {
   const navigate = useNavigate();
   const [loginId, setLoginId] = useState("");
   const [password, setPassword] = useState("");
@@ -23,7 +23,7 @@ export default function CustomerLogin() {
     setLoading(true);
 
     try {
-      const response = await fetch("/api/auth/customer/login", {
+      const response = await fetch("/api/auth/admin/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ login_id: loginId, password }),
@@ -38,11 +38,11 @@ export default function CustomerLogin() {
       }
 
       // トークンを保存
-      localStorage.setItem("customerToken", data.token);
-      localStorage.setItem("customer", JSON.stringify(data.customer));
+      localStorage.setItem("adminToken", data.token);
+      localStorage.setItem("adminShop", JSON.stringify(data.shop));
 
-      // 商品一覧ページにリダイレクト
-      navigate("/customer/products");
+      // 管理画面にリダイレクト
+      navigate("/admin");
     } catch (err) {
       setError("ログイン処理中にエラーが発生しました");
       setLoading(false);
@@ -50,7 +50,7 @@ export default function CustomerLogin() {
   };
 
   return (
-    <Page title="得意先ログイン">
+    <Page title="管理者ログイン">
       <Card>
         <BlockStack gap="400">
           <FormLayout>
@@ -84,9 +84,15 @@ export default function CustomerLogin() {
           </FormLayout>
           <div style={{ textAlign: "center", marginTop: "16px" }}>
             <Text as="p" tone="subdued">
-              アカウントをお持ちでない方は{" "}
-              <Link to="/customer/register" style={{ color: "#2c6ecb" }}>
+              管理者アカウントをお持ちでない方は{" "}
+              <Link to="/admin/register" style={{ color: "#2c6ecb" }}>
                 新規登録
+              </Link>
+            </Text>
+            <Text as="p" tone="subdued">
+              得意先の方は{" "}
+              <Link to="/customer/login" style={{ color: "#2c6ecb" }}>
+                こちら
               </Link>
             </Text>
           </div>
@@ -95,4 +101,3 @@ export default function CustomerLogin() {
     </Page>
   );
 }
-

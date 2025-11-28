@@ -27,13 +27,27 @@ eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxaWRsdmJ
 
 ### ステップ2: API設定を開く
 1. 左メニューから「Settings」（⚙️）をクリック
-2. 「API」を選択
+2. 「API」または「API Keys」を選択
 
 ### ステップ3: Service Role Keyをコピー
+
+**方法A: Project API keysセクションから取得（推奨）**
 1. 「Project API keys」セクションを確認
 2. 「service_role」の「secret」キーをコピー
    - ⚠️ **重要**: このキーは機密情報です。絶対に公開しないでください
    - ⚠️ **注意**: 「anon」キーではなく「service_role」キーを使用してください
+
+**方法B: 新しいSecret Keyを作成（最新UIの場合）**
+1. 「API Keys」ページで「Create new secret key」ボタンをクリック
+2. 新しいsecretキーを作成（これはservice_roleと同じ権限を持ちます）
+3. 作成されたキーをコピー（表示されるのは一度だけなので注意）
+
+**方法C: 見つからない場合**
+最新のSupabase UIでは、JWTベースの`service_role`キーが非表示になっている可能性があります。
+この場合、以下のいずれかを試してください：
+1. ページを下にスクロールして「JWT Settings」セクションを確認
+2. 「Reveal」ボタンをクリックしてservice_roleキーを表示
+3. または、新しい「secret」キーを作成して使用（方法B参照）
 
 ### ステップ4: 環境変数に設定
 `.env`ファイルに設定します（次のセクション参照）
@@ -117,3 +131,4 @@ Error: Supabase環境変数が設定されていません
 
 このエラーが出る場合は、`.env`ファイルが正しく作成され、環境変数が設定されているか確認してください。
 
+supabase factorylink pass wJ7l3BC4s80ksRFa

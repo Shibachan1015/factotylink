@@ -9,10 +9,13 @@ import {
   Text,
   TextField,
   Button,
-  Stack,
+  BlockStack,
+  InlineStack,
   Badge,
+  Banner,
 } from "@shopify/polaris";
 import { useCartStore } from "../../../stores/cart-store.ts";
+import Layout from "../../../components/Layout.tsx";
 
 interface Product {
   id: number;
@@ -69,15 +72,16 @@ export default function ProductsPage() {
   };
 
   return (
-    <Page
-      title="商品一覧"
-      primaryAction={{
-        content: "カートを見る",
-        onAction: () => navigate("/customer/cart"),
-      }}
-    >
-      <Card>
-        <Stack vertical>
+    <Layout>
+      <Page
+        title="商品一覧"
+        primaryAction={{
+          content: "カートを見る",
+          onAction: () => navigate("/customer/cart"),
+        }}
+      >
+        <Card>
+        <BlockStack gap="400">
           <TextField
             label="商品検索"
             value={search}
@@ -104,8 +108,8 @@ export default function ProductsPage() {
                   accessibilityLabel={`${title}を表示`}
                   onClick={() => navigate(`/customer/products/${id}`)}
                 >
-                  <Stack>
-                    <Stack.Item fill>
+                  <InlineStack align="space-between" blockAlign="center" gap="400">
+                    <div style={{flexGrow: 1}}>
                       <Text variant="bodyMd" fontWeight="bold" as="h3">
                         {title}
                       </Text>
@@ -118,12 +122,12 @@ export default function ProductsPage() {
                         ¥{price.toLocaleString()}
                       </Text>
                       <Badge
-                        status={inventory_quantity > 0 ? "success" : "critical"}
+                        tone={inventory_quantity > 0 ? "success" : "critical"}
                       >
                         在庫: {inventory_quantity}
                       </Badge>
-                    </Stack.Item>
-                    <Stack.Item>
+                    </div>
+                    <div>
                       <Button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -133,15 +137,16 @@ export default function ProductsPage() {
                       >
                         カートに追加
                       </Button>
-                    </Stack.Item>
-                  </Stack>
+                    </div>
+                  </InlineStack>
                 </ResourceItem>
               );
             }}
           />
-        </Stack>
+        </BlockStack>
       </Card>
     </Page>
+    </Layout>
   );
 }
 

@@ -11,7 +11,8 @@ import {
   ChoiceList,
   TextField,
   Button,
-  Stack,
+  BlockStack,
+  InlineStack,
 } from "@shopify/polaris";
 import type { OrderStatus } from "../../../types.ts";
 
@@ -76,13 +77,13 @@ export default function AdminOrdersPage() {
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusMap = {
-      new: { status: "info" as const, label: "新規" },
-      manufacturing: { status: "attention" as const, label: "製造中" },
-      completed: { status: "success" as const, label: "製造完了" },
-      shipped: { status: "success" as const, label: "出荷済み" },
+      new: { tone: "info" as const, label: "新規" },
+      manufacturing: { tone: "attention" as const, label: "製造中" },
+      completed: { tone: "success" as const, label: "製造完了" },
+      shipped: { tone: "success" as const, label: "出荷済み" },
     };
     const config = statusMap[status];
-    return <Badge status={config.status}>{config.label}</Badge>;
+    return <Badge tone={config.tone}>{config.label}</Badge>;
   };
 
   const filterControl = (
@@ -111,7 +112,7 @@ export default function AdminOrdersPage() {
           key: "date",
           label: "日付",
           filter: (
-            <Stack vertical>
+            <BlockStack gap="200">
               <TextField
                 label="開始日"
                 type="date"
@@ -124,7 +125,7 @@ export default function AdminOrdersPage() {
                 value={endDate}
                 onChange={setEndDate}
               />
-            </Stack>
+            </BlockStack>
           ),
         },
       ]}
@@ -158,8 +159,8 @@ export default function AdminOrdersPage() {
                 id={order.id}
                 onClick={() => navigate(`/admin/orders/${order.id}`)}
               >
-                <Stack>
-                  <Stack.Item fill>
+                <InlineStack align="space-between" blockAlign="center" gap="400">
+                  <div style={{flexGrow: 1}}>
                     <Text variant="bodyMd" fontWeight="bold" as="h3">
                       注文番号: {order.order_number}
                     </Text>
@@ -172,16 +173,16 @@ export default function AdminOrdersPage() {
                     <Text variant="bodySm" as="p">
                       商品数: {itemCount}点
                     </Text>
-                  </Stack.Item>
-                  <Stack.Item>
+                  </div>
+                  <div>
                     {getStatusBadge(order.status)}
-                  </Stack.Item>
-                  <Stack.Item>
+                  </div>
+                  <div>
                     <Text variant="bodyMd" fontWeight="bold" as="p">
                       ¥{order.total_amount.toLocaleString()}
                     </Text>
-                  </Stack.Item>
-                </Stack>
+                  </div>
+                </InlineStack>
               </ResourceItem>
             );
           }}
@@ -190,4 +191,3 @@ export default function AdminOrdersPage() {
     </Page>
   );
 }
-

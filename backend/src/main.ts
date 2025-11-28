@@ -1,14 +1,12 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { prettyJSON } from "hono/pretty-json";
 import "$std/dotenv/load.ts";
 
 const app = new Hono();
 
 // ミドルウェア
 app.use("*", logger());
-app.use("*", prettyJSON());
 app.use(
   "*",
   cors({
@@ -16,6 +14,18 @@ app.use(
     credentials: true,
   }),
 );
+
+// ルートパス
+app.get("/", (c) => {
+  return c.json({
+    message: "BtoB受発注プラットフォーム API",
+    version: "1.0.0",
+    endpoints: {
+      health: "/health",
+      api: "/api"
+    }
+  });
+});
 
 // ヘルスチェック
 app.get("/health", (c) => {
@@ -30,8 +40,10 @@ app.get("/api", (c) => {
 // 認証ルート
 import shopifyAuthRoutes from "./routes/api/auth/shopify.ts";
 import customerAuthRoutes from "./routes/api/auth/customer.ts";
+import adminAuthRoutes from "./routes/api/auth/admin.ts";
 app.route("/api/auth", shopifyAuthRoutes);
 app.route("/api/auth/customer", customerAuthRoutes);
+app.route("/api/auth/admin", adminAuthRoutes);
 
 // 商品ルート
 import productsRoutes from "./routes/api/products/index.ts";
@@ -53,9 +65,11 @@ app.route("/api/admin/orders", adminOrdersRoutes);
 import deliveryNoteRoutes from "./routes/api/documents/delivery-note.ts";
 import invoiceRoutes from "./routes/api/documents/invoice.ts";
 import labelRoutes from "./routes/api/documents/label.ts";
+import documentsRoutes from "./routes/api/documents/index.ts";
 app.route("/api/documents/delivery-note", deliveryNoteRoutes);
 app.route("/api/documents/invoice", invoiceRoutes);
 app.route("/api/documents/label", labelRoutes);
+app.route("/api/documents", documentsRoutes);
 
 // 得意先管理ルート
 import customersRoutes from "./routes/api/customers/index.ts";

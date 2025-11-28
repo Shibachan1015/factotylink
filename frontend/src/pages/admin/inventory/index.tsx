@@ -8,7 +8,8 @@ import {
   Text,
   TextField,
   Button,
-  Stack,
+  BlockStack,
+  InlineStack,
   Badge,
 } from "@shopify/polaris";
 
@@ -96,7 +97,7 @@ export default function AdminInventoryPage() {
   return (
     <Page title="在庫管理">
       <Card>
-        <Stack vertical>
+        <BlockStack gap="400">
           <TextField
             label="商品検索"
             value={search}
@@ -120,8 +121,8 @@ export default function AdminInventoryPage() {
 
               return (
                 <ResourceItem id={String(id)} media={media}>
-                  <Stack>
-                    <Stack.Item fill>
+                  <InlineStack align="space-between" blockAlign="center" gap="400">
+                    <div style={{flexGrow: 1}}>
                       <Text variant="bodyMd" fontWeight="bold" as="h3">
                         {title}
                       </Text>
@@ -134,7 +135,7 @@ export default function AdminInventoryPage() {
                         ¥{price.toLocaleString()}
                       </Text>
                       {isEditing ? (
-                        <Stack>
+                        <InlineStack gap="200" blockAlign="center">
                           <TextField
                             label="在庫数"
                             type="number"
@@ -144,30 +145,29 @@ export default function AdminInventoryPage() {
                           />
                           <Button onClick={() => handleSave(id)}>保存</Button>
                           <Button onClick={handleCancel}>キャンセル</Button>
-                        </Stack>
+                        </InlineStack>
                       ) : (
                         <Badge
-                          status={inventory_quantity > 0 ? "success" : "critical"}
+                          tone={inventory_quantity > 0 ? "success" : "critical"}
                         >
                           在庫: {inventory_quantity}
                         </Badge>
                       )}
-                    </Stack.Item>
+                    </div>
                     {!isEditing && (
-                      <Stack.Item>
+                      <div>
                         <Button onClick={() => handleEdit(product)}>
                           編集
                         </Button>
-                      </Stack.Item>
+                      </div>
                     )}
-                  </Stack>
+                  </InlineStack>
                 </ResourceItem>
               );
             }}
           />
-        </Stack>
+        </BlockStack>
       </Card>
     </Page>
   );
 }
-

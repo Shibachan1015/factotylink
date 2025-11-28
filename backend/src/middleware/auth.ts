@@ -7,6 +7,15 @@ if (!JWT_SECRET) {
   throw new Error("JWT_SECRET環境変数が設定されていません");
 }
 
+// JWT検証用のキーを事前に準備
+const jwtKey = await crypto.subtle.importKey(
+  "raw",
+  new TextEncoder().encode(JWT_SECRET),
+  { name: "HMAC", hash: "SHA-256" },
+  false,
+  ["verify"]
+);
+
 // 管理者認証ミドルウェア（Shopify OAuthセッション確認）
 export async function adminAuth(c: Context, next: Next) {
   // 簡易実装: セッション管理は後で実装
@@ -28,11 +37,12 @@ export async function customerAuth(c: Context, next: Next) {
   const token = authHeader.substring(7);
 
   try {
-    const payload = await verify(token, JWT_SECRET, "HS256");
+    const payload = await verify(token, jwtKey);
     c.set("customerId", payload.customerId as string);
     c.set("shopId", payload.shopId as string);
     await next();
   } catch (error) {
+    console.error("JWT verification error:", error);
     return c.json({ error: "無効なトークンです" }, 401);
   }
 }

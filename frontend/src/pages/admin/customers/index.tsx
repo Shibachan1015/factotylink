@@ -8,7 +8,7 @@ import {
   Text,
   Badge,
   Button,
-  Stack,
+  InlineStack,
 } from "@shopify/polaris";
 
 interface Customer {
@@ -86,8 +86,8 @@ export default function AdminCustomersPage() {
                 id={customer.id}
                 onClick={() => navigate(`/admin/customers/${customer.id}`)}
               >
-                <Stack>
-                  <Stack.Item fill>
+                <InlineStack align="space-between" blockAlign="center" gap="400">
+                  <div style={{flexGrow: 1}}>
                     <Text variant="bodyMd" fontWeight="bold" as="h3">
                       {customer.company_name}
                     </Text>
@@ -109,17 +109,17 @@ export default function AdminCustomersPage() {
                         メール: {customer.email}
                       </Text>
                     )}
-                  </Stack.Item>
-                  <Stack.Item>
+                  </div>
+                  <div>
                     <Badge
-                      status={customer.billing_type === "credit" ? "info" : "success"}
+                      tone={customer.billing_type === "credit" ? "info" : "success"}
                     >
                       {customer.billing_type === "credit" ? "掛売" : "都度"}
                     </Badge>
-                  </Stack.Item>
-                  <Stack.Item>
+                  </div>
+                  <div>
                     <Button
-                      destructive
+                      tone="critical"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleDelete(customer.id);
@@ -127,8 +127,8 @@ export default function AdminCustomersPage() {
                     >
                       削除
                     </Button>
-                  </Stack.Item>
-                </Stack>
+                  </div>
+                </InlineStack>
               </ResourceItem>
             );
           }}
@@ -137,4 +137,3 @@ export default function AdminCustomersPage() {
     </Page>
   );
 }
-

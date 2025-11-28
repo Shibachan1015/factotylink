@@ -9,8 +9,14 @@ CREATE TABLE IF NOT EXISTS shops (
   address TEXT,
   phone TEXT,
   invoice_number TEXT,
+  admin_login_id TEXT UNIQUE,
+  admin_password_hash TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 既存テーブルに管理者認証カラムを追加
+ALTER TABLE shops ADD COLUMN IF NOT EXISTS admin_login_id TEXT UNIQUE;
+ALTER TABLE shops ADD COLUMN IF NOT EXISTS admin_password_hash TEXT;
 
 -- customers（得意先）
 CREATE TABLE IF NOT EXISTS customers (

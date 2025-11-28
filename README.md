@@ -95,9 +95,13 @@ deno task dev
 ### 4. フロントエンドの起動
 
 ```bash
+# pnpmをインストール（未インストールの場合）
+# macOS: brew install pnpm
+# その他: npm install -g pnpm または curl -fsSL https://get.pnpm.io/install.sh | sh -
+
 cd frontend
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 フロントエンドは `http://localhost:5173` で起動します。
@@ -117,10 +121,45 @@ deno task check  # 型チェックとリント
 
 ```bash
 cd frontend
-npm run dev  # 開発モード
-npm run build  # ビルド
-npm run preview  # ビルド結果のプレビュー
+pnpm install  # 初回のみ
+pnpm run dev  # 開発モード
+pnpm run build  # ビルド
+pnpm run preview  # ビルド結果のプレビュー
 ```
+
+## 実装済み機能
+
+### 得意先ポータル
+- ✅ ログイン・ログアウト
+- ✅ 商品一覧表示・検索
+- ✅ 商品詳細表示
+- ✅ カート機能（追加・削除・数量変更）
+- ✅ 注文確定
+- ✅ 注文履歴一覧・詳細・ステータス確認
+
+### 管理者機能
+- ✅ 注文一覧・詳細表示
+- ✅ ステータス変更（新規→製造中→製造完了→出荷済み）
+- ✅ 検索・フィルター（得意先別、日付別、ステータス別）
+- ✅ 製造完了時のShopify在庫+処理
+- ✅ 出荷時のShopify在庫-処理
+- ✅ 納品書PDF生成
+- ✅ 請求書PDF生成
+- ✅ ラベルPDF生成（A4用紙22面シール）
+- ✅ 得意先一覧・登録・編集・削除
+- ✅ 請求方式設定（都度/掛売）
+- ✅ ログインアカウント発行
+- ✅ Shopify商品一覧表示
+- ✅ 在庫数表示・編集機能
+- ✅ 材料マスタ登録・編集・削除
+- ✅ 入庫登録・出庫登録
+- ✅ 現在在庫表示
+- ✅ 入出庫履歴一覧
+- ✅ ダッシュボード（統計表示）
+
+### 通知連携
+- ✅ 新規注文時 → Slack/LINE通知
+- ✅ ステータス変更時 → 得意先に通知（LINE）
 
 ## APIエンドポイント
 

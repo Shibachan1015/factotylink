@@ -10,7 +10,9 @@ import {
   Banner,
   Button,
   Select,
-  Stack,
+  BlockStack,
+  InlineStack,
+  ButtonGroup,
 } from "@shopify/polaris";
 import type { OrderStatus } from "../../../types.ts";
 
@@ -43,6 +45,7 @@ export default function AdminOrderDetailPage() {
   const [status, setStatus] = useState<OrderStatus | "">("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [generating, setGenerating] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -102,15 +105,54 @@ export default function AdminOrderDetailPage() {
     }
   };
 
+  const handleGenerateDocument = async (type: "delivery_note" | "invoice" | "label") => {
+    if (!order) return;
+
+    setGenerating(type);
+    setError(null);
+
+    try {
+      // まず帳票を生成
+      const createResponse = await fetch(`/api/documents/${type}/${order.id}`, {
+        method: "POST",
+      });
+
+      if (!createResponse.ok) {
+        const errorData = await createResponse.json();
+        setError(errorData.error || "帳票の生成に失敗しました");
+        setGenerating(null);
+        return;
+      }
+
+      // 生成された帳票のHTMLを表示
+      const htmlResponse = await fetch(`/api/documents/${order.id}/${type}`);
+      if (htmlResponse.ok) {
+        const html = await htmlResponse.text();
+        const newWindow = window.open();
+        if (newWindow) {
+          newWindow.document.write(html);
+          newWindow.document.close();
+        }
+        alert(`${type === "delivery_note" ? "納品書" : type === "invoice" ? "請求書" : "ラベル"}を生成しました`);
+      } else {
+        setError("帳票の表示に失敗しました");
+      }
+    } catch (err) {
+      setError("帳票生成中にエラーが発生しました");
+    } finally {
+      setGenerating(null);
+    }
+  };
+
   const getStatusBadge = (status: OrderStatus) => {
     const statusMap = {
-      new: { status: "info" as const, label: "新規" },
-      manufacturing: { status: "attention" as const, label: "製造中" },
-      completed: { status: "success" as const, label: "製造完了" },
-      shipped: { status: "success" as const, label: "出荷済み" },
+      new: { tone: "info" as const, label: "新規" },
+      manufacturing: { tone: "attention" as const, label: "製造中" },
+      completed: { tone: "success" as const, label: "製造完了" },
+      shipped: { tone: "success" as const, label: "出荷済み" },
     };
     const config = statusMap[status];
-    return <Badge status={config.status}>{config.label}</Badge>;
+    return <Badge tone={config.tone}>{config.label}</Badge>;
   };
 
   if (loading) {
@@ -121,7 +163,7 @@ export default function AdminOrderDetailPage() {
     return (
       <Page title="注文詳細">
         <Card>
-          <Banner status="critical">{error || "注文が見つかりません"}</Banner>
+          <Banner tone="critical">{error || "注文が見つかりません"}</Banner>
         </Card>
       </Page>
     );
@@ -152,32 +194,51 @@ export default function AdminOrderDetailPage() {
         loading: saving,
         disabled: !status || status === order.status,
       }}
+      secondaryActions={[
+        {
+          content: "納品書",
+          onAction: () => handleGenerateDocument("delivery_note"),
+          loading: generating === "delivery_note",
+        },
+        {
+          content: "請求書",
+          onAction: () => handleGenerateDocument("invoice"),
+          loading: generating === "invoice",
+        },
+        {
+          content: "ラベル",
+          onAction: () => handleGenerateDocument("label"),
+          loading: generating === "label",
+        },
+      ]}
     >
       <Layout>
         <Layout.Section>
           <Card>
-            <Stack vertical spacing="loose">
-              <Stack distribution="equalSpacing">
+            <BlockStack gap="400">
+              <InlineStack align="space-between">
                 <Text variant="bodyMd" as="p">
                   注文日: {new Date(order.ordered_at).toLocaleString("ja-JP")}
                 </Text>
                 {getStatusBadge(order.status)}
-              </Stack>
+              </InlineStack>
               {order.shipped_at && (
                 <Text variant="bodyMd" as="p">
                   出荷日: {new Date(order.shipped_at).toLocaleString("ja-JP")}
                 </Text>
               )}
-              <Stack>
+              <InlineStack gap="200" blockAlign="center">
                 <Text variant="bodyMd" as="span">
                   ステータス:
                 </Text>
                 <Select
+                  label=""
+                  labelHidden
                   options={statusOptions}
                   value={status}
                   onChange={(value) => setStatus(value as OrderStatus)}
                 />
-              </Stack>
+              </InlineStack>
               <Text variant="bodyMd" as="p">
                 得意先: {order.customers.company_name}
               </Text>
@@ -196,7 +257,7 @@ export default function AdminOrderDetailPage() {
                   備考: {order.notes}
                 </Text>
               )}
-            </Stack>
+            </BlockStack>
           </Card>
         </Layout.Section>
         <Layout.Section>
@@ -206,20 +267,19 @@ export default function AdminOrderDetailPage() {
               headings={["商品名", "SKU", "数量", "単価", "小計"]}
               rows={rows}
             />
-            <Card.Section>
-              <Stack distribution="equalSpacing">
+            <div style={{padding: "16px", borderTop: "1px solid #e1e3e5"}}>
+              <InlineStack align="space-between">
                 <Text variant="headingMd" as="h3">
                   合計
                 </Text>
                 <Text variant="headingLg" as="p">
                   ¥{order.total_amount.toLocaleString()}
                 </Text>
-              </Stack>
-            </Card.Section>
+              </InlineStack>
+            </div>
           </Card>
         </Layout.Section>
       </Layout>
     </Page>
   );
 }
-

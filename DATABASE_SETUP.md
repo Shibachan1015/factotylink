@@ -121,7 +121,7 @@ psql "postgresql://postgres:[YOUR-PASSWORD]@[YOUR-PROJECT-REF].supabase.co:5432/
 
 1. 環境変数を設定（`.env`ファイル）
 2. バックエンドサーバーを起動: `cd backend && deno task dev`
-3. フロントエンドを起動: `cd frontend && npm run dev`
+3. フロントエンドを起動: `cd frontend && pnpm install && pnpm run dev`
 
 ## 参考資料
 

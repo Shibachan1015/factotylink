@@ -8,6 +8,8 @@ import {
   Text,
   Badge,
   Banner,
+  BlockStack,
+  InlineStack,
 } from "@shopify/polaris";
 import type { OrderStatus } from "../../../../types.ts";
 
@@ -67,13 +69,13 @@ export default function OrderDetailPage() {
 
   const getStatusBadge = (status: OrderStatus) => {
     const statusMap = {
-      new: { status: "info" as const, label: "新規" },
-      manufacturing: { status: "attention" as const, label: "製造中" },
-      completed: { status: "success" as const, label: "製造完了" },
-      shipped: { status: "success" as const, label: "出荷済み" },
+      new: { tone: "info" as const, label: "新規" },
+      manufacturing: { tone: "attention" as const, label: "製造中" },
+      completed: { tone: "success" as const, label: "製造完了" },
+      shipped: { tone: "success" as const, label: "出荷済み" },
     };
     const config = statusMap[status];
-    return <Badge status={config.status}>{config.label}</Badge>;
+    return <Badge tone={config.tone}>{config.label}</Badge>;
   };
 
   if (loading) {
@@ -84,7 +86,7 @@ export default function OrderDetailPage() {
     return (
       <Page title="注文詳細">
         <Card>
-          <Banner status="critical">{error || "注文が見つかりません"}</Banner>
+          <Banner tone="critical">{error || "注文が見つかりません"}</Banner>
         </Card>
       </Page>
     );
@@ -106,13 +108,13 @@ export default function OrderDetailPage() {
       <Layout>
         <Layout.Section>
           <Card>
-            <Stack vertical spacing="loose">
-              <Stack distribution="equalSpacing">
+            <BlockStack gap="400">
+              <InlineStack align="space-between">
                 <Text variant="bodyMd" as="p">
                   注文日: {new Date(order.ordered_at).toLocaleString("ja-JP")}
                 </Text>
                 {getStatusBadge(order.status)}
-              </Stack>
+              </InlineStack>
               {order.shipped_at && (
                 <Text variant="bodyMd" as="p">
                   出荷日: {new Date(order.shipped_at).toLocaleString("ja-JP")}
@@ -123,7 +125,7 @@ export default function OrderDetailPage() {
                   備考: {order.notes}
                 </Text>
               )}
-            </Stack>
+            </BlockStack>
           </Card>
         </Layout.Section>
         <Layout.Section>
@@ -133,20 +135,19 @@ export default function OrderDetailPage() {
               headings={["商品名", "SKU", "数量", "単価", "小計"]}
               rows={rows}
             />
-            <Card.Section>
-              <Stack distribution="equalSpacing">
+            <div style={{padding: "16px", borderTop: "1px solid #e1e3e5"}}>
+              <InlineStack align="space-between">
                 <Text variant="headingMd" as="h3">
                   合計
                 </Text>
                 <Text variant="headingLg" as="p">
                   ¥{order.total_amount.toLocaleString()}
                 </Text>
-              </Stack>
-            </Card.Section>
+              </InlineStack>
+            </div>
           </Card>
         </Layout.Section>
       </Layout>
     </Page>
   );
 }
-

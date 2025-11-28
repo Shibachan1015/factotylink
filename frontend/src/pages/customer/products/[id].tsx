@@ -7,7 +7,8 @@ import {
   Thumbnail,
   Text,
   Button,
-  Stack,
+  BlockStack,
+  InlineStack,
   Badge,
   Banner,
 } from "@shopify/polaris";
@@ -85,7 +86,7 @@ export default function ProductDetailPage() {
     return (
       <Page title="商品詳細">
         <Card>
-          <Banner status="critical">{error || "商品が見つかりません"}</Banner>
+          <Banner tone="critical">{error || "商品が見つかりません"}</Banner>
         </Card>
       </Page>
     );
@@ -99,7 +100,7 @@ export default function ProductDetailPage() {
       <Layout>
         <Layout.Section>
           <Card>
-            <Stack vertical spacing="loose">
+            <BlockStack gap="400">
               {product.image_url && (
                 <Thumbnail source={product.image_url} alt={product.title} size="large" />
               )}
@@ -115,11 +116,11 @@ export default function ProductDetailPage() {
                 ¥{product.price.toLocaleString()}
               </Text>
               <Badge
-                status={product.inventory_quantity > 0 ? "success" : "critical"}
+                tone={product.inventory_quantity > 0 ? "success" : "critical"}
               >
                 在庫: {product.inventory_quantity}
               </Badge>
-              <Stack>
+              <InlineStack gap="200" blockAlign="center">
                 <Button
                   onClick={() => setQuantity(Math.max(1, quantity - 1))}
                   disabled={quantity <= 1}
@@ -139,20 +140,19 @@ export default function ProductDetailPage() {
                 >
                   +
                 </Button>
-              </Stack>
+              </InlineStack>
               <Button
-                primary
+                variant="primary"
                 onClick={handleAddToCart}
                 disabled={product.inventory_quantity === 0}
                 fullWidth
               >
                 カートに追加
               </Button>
-            </Stack>
+            </BlockStack>
           </Card>
         </Layout.Section>
       </Layout>
     </Page>
   );
 }
-
