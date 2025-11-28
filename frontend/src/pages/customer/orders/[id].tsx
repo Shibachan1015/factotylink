@@ -13,6 +13,7 @@ import {
   Button,
 } from "@shopify/polaris";
 import type { OrderStatus } from "../../../types.ts";
+import { useCartStore } from "../../../stores/cart-store.ts";
 
 interface Order {
   id: string;
@@ -23,6 +24,7 @@ interface Order {
   ordered_at: string;
   shipped_at: string | null;
   order_items: Array<{
+    product_id: number;
     product_name: string;
     sku: string | null;
     quantity: number;
@@ -37,6 +39,7 @@ export default function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { addItem, clearCart } = useCartStore();
 
   useEffect(() => {
     if (id) {
@@ -103,6 +106,26 @@ export default function OrderDetailPage() {
     }
   };
 
+  const handleReorder = () => {
+    if (!order) return;
+
+    // カートをクリアしてから商品を追加
+    clearCart();
+
+    order.order_items.forEach((item) => {
+      addItem({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        sku: item.sku,
+        price: item.unit_price,
+        image_url: null,
+        quantity: item.quantity,
+      });
+    });
+
+    navigate("/customer/cart");
+  };
+
   if (loading) {
     return <Page title="注文詳細"><Card><Text as="p">読み込み中...</Text></Card></Page>;
   }
@@ -129,6 +152,10 @@ export default function OrderDetailPage() {
     <Page
       title={`注文詳細: ${order.order_number}`}
       backAction={{ onAction: () => navigate("/customer/orders") }}
+      primaryAction={{
+        content: "再注文",
+        onAction: handleReorder,
+      }}
     >
       <Layout>
         <Layout.Section>

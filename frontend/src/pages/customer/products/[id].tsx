@@ -19,8 +19,11 @@ interface Product {
   title: string;
   sku: string | null;
   price: number;
+  original_price?: number;
+  has_custom_price?: boolean;
   inventory_quantity: number;
   image_url: string | null;
+  description?: string | null;
 }
 
 export default function ProductDetailPage() {
@@ -112,9 +115,28 @@ export default function ProductDetailPage() {
                   SKU: {product.sku}
                 </Text>
               )}
-              <Text variant="headingLg" as="p">
-                ¥{product.price.toLocaleString()}
-              </Text>
+              {product.has_custom_price && product.original_price ? (
+                <InlineStack gap="200" blockAlign="center">
+                  <Text variant="headingLg" as="p" tone="success">
+                    ¥{product.price.toLocaleString()}
+                  </Text>
+                  <Text variant="bodyMd" as="span" tone="subdued">
+                    <span style={{ textDecoration: "line-through" }}>
+                      ¥{product.original_price.toLocaleString()}
+                    </span>
+                  </Text>
+                  <Badge tone="success">特別価格</Badge>
+                </InlineStack>
+              ) : (
+                <Text variant="headingLg" as="p">
+                  ¥{product.price.toLocaleString()}
+                </Text>
+              )}
+              {product.description && (
+                <Text variant="bodyMd" as="p">
+                  {product.description}
+                </Text>
+              )}
               <Badge
                 tone={product.inventory_quantity > 0 ? "success" : "critical"}
               >

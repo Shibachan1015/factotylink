@@ -10,6 +10,8 @@ import {
   Filters,
   ChoiceList,
   InlineStack,
+  TextField,
+  BlockStack,
 } from "@shopify/polaris";
 import type { OrderStatus } from "../../../types.ts";
 
@@ -30,6 +32,9 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   useEffect(() => {
     fetchOrders();
@@ -61,6 +66,39 @@ export default function OrdersPage() {
     }
   };
 
+  // クライアントサイドフィルタリング
+  const filteredOrders = orders.filter((order) => {
+    // 検索クエリでフィルタ（注文番号または商品名）
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesOrderNumber = order.order_number.toLowerCase().includes(query);
+      const matchesProduct = order.order_items.some((item) =>
+        item.product_name.toLowerCase().includes(query)
+      );
+      if (!matchesOrderNumber && !matchesProduct) {
+        return false;
+      }
+    }
+
+    // 日付でフィルタ
+    const orderDate = new Date(order.ordered_at);
+    if (dateFrom) {
+      const fromDate = new Date(dateFrom);
+      if (orderDate < fromDate) {
+        return false;
+      }
+    }
+    if (dateTo) {
+      const toDate = new Date(dateTo);
+      toDate.setHours(23, 59, 59, 999);
+      if (orderDate > toDate) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
   const getStatusBadge = (status: OrderStatus) => {
     const statusMap = {
       new: { tone: "info" as const, label: "新規" },
@@ -72,33 +110,69 @@ export default function OrdersPage() {
     return <Badge tone={config.tone}>{config.label}</Badge>;
   };
 
+  const handleClearAll = () => {
+    setStatusFilter([]);
+    setSearchQuery("");
+    setDateFrom("");
+    setDateTo("");
+  };
+
   const filterControl = (
-    <Filters
-      queryValue=""
-      filters={[
-        {
-          key: "status",
-          label: "ステータス",
-          filter: (
-            <ChoiceList
-              title="ステータス"
-              titleHidden
-              choices={[
-                { label: "新規", value: "new" },
-                { label: "製造中", value: "manufacturing" },
-                { label: "製造完了", value: "completed" },
-                { label: "出荷済み", value: "shipped" },
-              ]}
-              selected={statusFilter}
-              onChange={setStatusFilter}
-            />
-          ),
-        },
-      ]}
-      onQueryChange={() => {}}
-      onQueryClear={() => {}}
-      onClearAll={() => setStatusFilter([])}
-    />
+    <BlockStack gap="400">
+      <Filters
+        queryValue={searchQuery}
+        queryPlaceholder="注文番号または商品名で検索"
+        filters={[
+          {
+            key: "status",
+            label: "ステータス",
+            filter: (
+              <ChoiceList
+                title="ステータス"
+                titleHidden
+                choices={[
+                  { label: "新規", value: "new" },
+                  { label: "製造中", value: "manufacturing" },
+                  { label: "製造完了", value: "completed" },
+                  { label: "出荷済み", value: "shipped" },
+                ]}
+                selected={statusFilter}
+                onChange={setStatusFilter}
+              />
+            ),
+          },
+          {
+            key: "dateFrom",
+            label: "開始日",
+            filter: (
+              <TextField
+                label="開始日"
+                type="date"
+                value={dateFrom}
+                onChange={setDateFrom}
+                autoComplete="off"
+              />
+            ),
+          },
+          {
+            key: "dateTo",
+            label: "終了日",
+            filter: (
+              <TextField
+                label="終了日"
+                type="date"
+                value={dateTo}
+                onChange={setDateTo}
+                autoComplete="off"
+              />
+            ),
+          },
+        ]}
+        onQueryChange={setSearchQuery}
+        onQueryClear={() => setSearchQuery("")}
+        onClearAll={handleClearAll}
+      />
+    </BlockStack>
   );
 
   return (
@@ -107,7 +181,7 @@ export default function OrdersPage() {
         {filterControl}
         <ResourceList
           resourceName={{ singular: "注文", plural: "注文" }}
-          items={orders}
+          items={filteredOrders}
           loading={loading}
           renderItem={(order) => {
             const itemCount = order.order_items.reduce(
