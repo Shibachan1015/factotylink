@@ -1,0 +1,27 @@
+{
+  "lock": false,
+  "tasks": {
+    "dev": "deno run --allow-all --watch src/main.ts",
+    "start": "deno run --allow-all src/main.ts",
+    "check": "deno fmt --check && deno lint && deno check **/*.ts",
+    "apply-schema": "deno run --allow-all --allow-read --allow-env src/utils/apply-schema.ts"
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  },
+  "imports": {
+    "hono": "https://deno.land/x/hono@v4.5.0/mod.ts",
+    "hono/": "https://deno.land/x/hono@v4.5.0/",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3",
+    "zod": "https://deno.land/x/zod@v3.22.4/mod.ts",
+    "bcrypt": "https://deno.land/x/bcrypt@v0.4.1/mod.ts",
+    "djwt": "https://deno.land/x/djwt@v3.0.2/mod.ts",
+    "$std/": "https://deno.land/std@0.216.0/"
+  },
+  "compilerOptions": {
+    "strict": true,
+    "lib": ["deno.ns", "deno.unstable", "dom"]
+  }
+}

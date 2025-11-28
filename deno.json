@@ -1,0 +1,13 @@
+{
+  "lock": false,
+  "tasks": {
+    "backend:dev": "cd backend && deno task dev",
+    "backend:start": "cd backend && deno task start",
+    "check": "deno fmt --check && deno lint"
+  },
+  "lint": {
+    "rules": {
+      "tags": ["recommended"]
+    }
+  }
+}
