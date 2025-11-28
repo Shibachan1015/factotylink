@@ -90,7 +90,8 @@ adminOrders.patch("/:id/status", adminAuth, async (c) => {
       .from("orders")
       .select(`
         *,
-        order_items (*)
+        order_items (*),
+        customers (id, company_name, email)
       `)
       .eq("id", orderId)
       .single();
@@ -117,19 +118,20 @@ adminOrders.patch("/:id/status", adminAuth, async (c) => {
 
     // 在庫連携処理
     if (status === "completed") {
-      // 製造完了時: Shopify在庫+
+      // 製造完了時: 在庫+
       try {
-        const shopifyService = await getShopifyService(order.shop_id);
         for (const item of order.order_items) {
-          const currentQuantity = await shopifyService.getInventory(
-            item.product_id,
-          );
-          await shopifyService.updateInventory(
-            item.product_id,
-            item.quantity,
-          );
+          // 現在の在庫数を取得
+          const { data: product } = await supabase
+            .from("products")
+            .select("inventory_quantity")
+            .eq("id", item.product_id)
+            .eq("shop_id", order.shop_id)
+            .single();
 
-          // Supabaseの商品キャッシュも更新
+          const currentQuantity = product?.inventory_quantity || 0;
+
+          // ローカル在庫を更新
           await supabase
             .from("products")
             .update({
@@ -137,25 +139,34 @@ adminOrders.patch("/:id/status", adminAuth, async (c) => {
             })
             .eq("id", item.product_id)
             .eq("shop_id", order.shop_id);
+
+          // Shopify連携（オプション - 設定されている場合のみ）
+          try {
+            const shopifyService = await getShopifyService(order.shop_id);
+            await shopifyService.updateInventory(item.product_id, item.quantity);
+          } catch {
+            // Shopify連携エラーは無視（ローカル在庫は更新済み）
+          }
         }
       } catch (error) {
         console.error("Inventory update error:", error);
         // エラーが発生しても注文ステータスは更新済み
       }
     } else if (status === "shipped") {
-      // 出荷時: Shopify在庫-
+      // 出荷時: 在庫-
       try {
-        const shopifyService = await getShopifyService(order.shop_id);
         for (const item of order.order_items) {
-          const currentQuantity = await shopifyService.getInventory(
-            item.product_id,
-          );
-          await shopifyService.updateInventory(
-            item.product_id,
-            -item.quantity,
-          );
+          // 現在の在庫数を取得
+          const { data: product } = await supabase
+            .from("products")
+            .select("inventory_quantity")
+            .eq("id", item.product_id)
+            .eq("shop_id", order.shop_id)
+            .single();
 
-          // Supabaseの商品キャッシュも更新
+          const currentQuantity = product?.inventory_quantity || 0;
+
+          // ローカル在庫を更新
           await supabase
             .from("products")
             .update({
@@ -163,6 +174,14 @@ adminOrders.patch("/:id/status", adminAuth, async (c) => {
             })
             .eq("id", item.product_id)
             .eq("shop_id", order.shop_id);
+
+          // Shopify連携（オプション - 設定されている場合のみ）
+          try {
+            const shopifyService = await getShopifyService(order.shop_id);
+            await shopifyService.updateInventory(item.product_id, -item.quantity);
+          } catch {
+            // Shopify連携エラーは無視（ローカル在庫は更新済み）
+          }
         }
       } catch (error) {
         console.error("Inventory update error:", error);
