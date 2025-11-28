@@ -39,6 +39,7 @@ export default function AdminOrdersPage() {
   const [customerFilter, setCustomerFilter] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchOrders();
@@ -85,9 +86,26 @@ export default function AdminOrdersPage() {
     return <Badge tone={config.tone}>{config.label}</Badge>;
   };
 
+  // クライアントサイドでの検索フィルタリング
+  const filteredOrders = orders.filter((order) => {
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      const matchesOrderNumber = order.order_number.toLowerCase().includes(query);
+      const matchesCustomer = order.customers.company_name.toLowerCase().includes(query);
+      const matchesProduct = order.order_items.some((item) =>
+        item.product_name.toLowerCase().includes(query)
+      );
+      if (!matchesOrderNumber && !matchesCustomer && !matchesProduct) {
+        return false;
+      }
+    }
+    return true;
+  });
+
   const filterControl = (
     <Filters
-      queryValue=""
+      queryValue={searchQuery}
+      queryPlaceholder="注文番号・得意先名・商品名で検索"
       filters={[
         {
           key: "status",
@@ -130,13 +148,14 @@ export default function AdminOrdersPage() {
           ),
         },
       ]}
-      onQueryChange={() => {}}
-      onQueryClear={() => {}}
+      onQueryChange={setSearchQuery}
+      onQueryClear={() => setSearchQuery("")}
       onClearAll={() => {
         setStatusFilter([]);
         setCustomerFilter("");
         setStartDate("");
         setEndDate("");
+        setSearchQuery("");
       }}
     />
   );
@@ -191,7 +210,7 @@ export default function AdminOrdersPage() {
         {filterControl}
         <ResourceList
           resourceName={{ singular: "注文", plural: "注文" }}
-          items={orders}
+          items={filteredOrders}
           loading={loading}
           renderItem={(order) => {
             const itemCount = order.order_items.reduce(
