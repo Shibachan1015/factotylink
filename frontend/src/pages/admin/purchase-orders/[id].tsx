@@ -15,6 +15,30 @@ import {
 } from "@shopify/polaris";
 import { apiGet, apiPost } from "../../../utils/api";
 
+// 発注書PDF表示用の新しいウィンドウを開く
+const openPurchaseOrderPdf = async (orderId: string) => {
+  try {
+    const token = localStorage.getItem("adminToken");
+    const response = await fetch(`/api/admin/purchase-orders/${orderId}/pdf`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    if (!response.ok) throw new Error("発注書の取得に失敗しました");
+    const data = await response.json();
+
+    // 新しいウィンドウでHTMLを表示
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(data.html);
+      printWindow.document.close();
+    }
+  } catch (err) {
+    console.error("Failed to open purchase order PDF:", err);
+    alert("発注書の表示に失敗しました");
+  }
+};
+
 interface Supplier {
   id: string;
   name: string;
@@ -226,6 +250,10 @@ export default function PurchaseOrderFormPage() {
       <Page
         title={`発注書 ${order.order_number}`}
         backAction={{ onAction: () => navigate("/admin/purchase-orders") }}
+        primaryAction={{
+          content: "発注書を印刷",
+          onAction: () => openPurchaseOrderPdf(order.id),
+        }}
       >
         <BlockStack gap="400">
           <Card>

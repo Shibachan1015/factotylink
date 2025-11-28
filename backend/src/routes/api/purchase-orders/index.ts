@@ -2,6 +2,10 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { supabase } from "../../../services/supabase-service.ts";
 import { adminAuth } from "../../../middleware/auth.ts";
+import {
+  generatePurchaseOrderHTML,
+  type PurchaseOrderData,
+} from "../../../services/pdf-service.ts";
 
 const purchaseOrders = new Hono();
 
@@ -261,6 +265,85 @@ purchaseOrders.patch("/:id/status", adminAuth, async (c) => {
     }
     console.error("Update purchase order status error:", error);
     return c.json({ error: "ステータス更新中にエラーが発生しました" }, 500);
+  }
+});
+
+// 発注書PDF（HTML）生成
+purchaseOrders.get("/:id/pdf", adminAuth, async (c) => {
+  try {
+    const orderId = c.req.param("id");
+
+    // 発注書を取得
+    const { data: order, error: orderError } = await supabase
+      .from("purchase_orders")
+      .select(`
+        *,
+        suppliers:supplier_id (*)
+      `)
+      .eq("id", orderId)
+      .single();
+
+    if (orderError || !order) {
+      return c.json({ error: "発注書が見つかりません" }, 404);
+    }
+
+    // 発注明細を取得
+    const { data: items } = await supabase
+      .from("purchase_order_items")
+      .select(`
+        *,
+        materials:material_id (id, name, code, unit)
+      `)
+      .eq("purchase_order_id", orderId);
+
+    // ショップ情報を取得
+    const { data: shop, error: shopError } = await supabase
+      .from("shops")
+      .select("*")
+      .eq("id", order.shop_id)
+      .single();
+
+    if (shopError || !shop) {
+      return c.json({ error: "ショップ情報が見つかりません" }, 404);
+    }
+
+    const documentData: PurchaseOrderData = {
+      purchaseOrder: {
+        id: order.id,
+        order_number: order.order_number,
+        status: order.status,
+        total_amount: order.total_amount,
+        expected_delivery_date: order.expected_delivery_date,
+        notes: order.notes,
+        created_at: order.created_at,
+      },
+      supplier: {
+        name: order.suppliers?.name || "",
+        contact_name: order.suppliers?.contact_name || null,
+        phone: order.suppliers?.phone || null,
+        email: order.suppliers?.email || null,
+        address: order.suppliers?.address || null,
+      },
+      items: (items || []).map((item: any) => ({
+        material_name: item.materials?.name || "",
+        material_code: item.materials?.code || null,
+        unit: item.materials?.unit || "",
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        subtotal: item.subtotal,
+      })),
+      shop,
+    };
+
+    const html = generatePurchaseOrderHTML(documentData);
+
+    return c.json({
+      html,
+      order_number: order.order_number,
+    });
+  } catch (error) {
+    console.error("Generate purchase order PDF error:", error);
+    return c.json({ error: "発注書PDF生成中にエラーが発生しました" }, 500);
   }
 });
 

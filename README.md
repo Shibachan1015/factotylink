@@ -152,6 +152,17 @@ pnpm run preview  # ビルド結果のプレビュー
 - ✅ 現在在庫表示
 - ✅ 入出庫履歴一覧
 - ✅ ダッシュボード（統計表示）
+- ✅ BOM（部品表）管理・原価計算
+- ✅ 製造可能数量チェック
+- ✅ 経営分析（売上サマリー・商品別分析・得意先別分析）
+- ✅ 売上トレンドグラフ
+- ✅ 在庫回転率分析
+- ✅ 売掛金管理（エイジング分析）
+- ✅ AIアドバイス（Claude API連携）
+- ✅ 設定画面（API Key設定）
+- ✅ 仕入れ先マスタ管理
+- ✅ 発注書発行・管理（下書き→発注→入庫）
+- ✅ 発注入庫時の材料在庫自動更新
 
 ### 通知連携
 - ✅ 新規注文時 → Slack/LINE通知
@@ -203,4 +214,38 @@ pnpm run preview  # ビルド結果のプレビュー
 - `POST /api/admin/materials/transactions/in` - 入庫登録
 - `POST /api/admin/materials/transactions/out` - 出庫登録
 
-詳細は `docs/AGENT.md` を参照してください。
+### BOM（部品表）管理
+- `GET /api/admin/bom` - BOM一覧
+- `POST /api/admin/bom` - BOM作成
+- `GET /api/admin/bom/:productId/availability` - 製造可能数量チェック
+
+### 経営分析
+- `GET /api/admin/analytics/summary` - 売上サマリー
+- `GET /api/admin/analytics/products` - 商品別分析
+- `GET /api/admin/analytics/customers` - 得意先別分析
+- `GET /api/admin/analytics/sales-trend` - 売上トレンド
+- `GET /api/admin/analytics/inventory-turnover` - 在庫回転率
+- `GET /api/admin/analytics/receivables` - 売掛金管理
+
+### 設定
+- `GET /api/admin/settings` - 設定取得
+- `POST /api/admin/settings` - 設定保存
+- `POST /api/admin/settings/validate-api-key` - APIキー検証
+
+### AIアドバイス
+- `POST /api/admin/ai/advice` - AIアドバイス生成
+- `GET /api/admin/ai/reports` - レポート履歴
+
+### 仕入れ先管理
+- `GET /api/admin/suppliers` - 仕入れ先一覧
+- `POST /api/admin/suppliers` - 仕入れ先作成
+- `GET /api/admin/suppliers/:id` - 仕入れ先詳細
+- `PATCH /api/admin/suppliers/:id` - 仕入れ先更新
+- `DELETE /api/admin/suppliers/:id` - 仕入れ先削除
+
+### 発注書管理
+- `GET /api/admin/purchase-orders` - 発注書一覧
+- `POST /api/admin/purchase-orders` - 発注書作成
+- `GET /api/admin/purchase-orders/:id` - 発注書詳細
+- `PATCH /api/admin/purchase-orders/:id/status` - ステータス変更
+- `DELETE /api/admin/purchase-orders/:id` - 発注書削除
