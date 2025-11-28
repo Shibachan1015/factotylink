@@ -103,6 +103,14 @@ app.route("/api/admin/settings", settingsRoutes);
 import aiRoutes from "./routes/api/ai/index.ts";
 app.route("/api/admin/ai", aiRoutes);
 
+// 仕入れ先管理ルート
+import suppliersRoutes from "./routes/api/suppliers/index.ts";
+app.route("/api/admin/suppliers", suppliersRoutes);
+
+// 発注書管理ルート
+import purchaseOrdersRoutes from "./routes/api/purchase-orders/index.ts";
+app.route("/api/admin/purchase-orders", purchaseOrdersRoutes);
+
 const port = parseInt(Deno.env.get("PORT") || "8000");
 console.log(`🚀 Server running on http://localhost:${port}`);
 

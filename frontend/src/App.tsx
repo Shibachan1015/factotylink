@@ -23,6 +23,10 @@ import AdminBomPage from "./pages/admin/bom/index.tsx";
 import AdminAnalyticsPage from "./pages/admin/analytics/index.tsx";
 import AdminAiPage from "./pages/admin/ai/index.tsx";
 import AdminSettingsPage from "./pages/admin/settings/index.tsx";
+import AdminSuppliersPage from "./pages/admin/suppliers/index.tsx";
+import SupplierFormPage from "./pages/admin/suppliers/[id].tsx";
+import AdminPurchaseOrdersPage from "./pages/admin/purchase-orders/index.tsx";
+import PurchaseOrderFormPage from "./pages/admin/purchase-orders/[id].tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 
 function App() {
@@ -191,6 +195,38 @@ function App() {
           element={
             <ProtectedRoute requireAdmin>
               <AdminSettingsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/suppliers"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminSuppliersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/suppliers/:id"
+          element={
+            <ProtectedRoute requireAdmin>
+              <SupplierFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/purchase-orders"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminPurchaseOrdersPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/purchase-orders/:id"
+          element={
+            <ProtectedRoute requireAdmin>
+              <PurchaseOrderFormPage />
             </ProtectedRoute>
           }
         />

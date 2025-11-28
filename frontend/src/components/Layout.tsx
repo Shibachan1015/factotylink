@@ -70,6 +70,14 @@ export default function Layout({ children, isAdmin = false }: LayoutProps) {
       url: "/admin/bom",
     },
     {
+      label: "仕入れ先管理",
+      url: "/admin/suppliers",
+    },
+    {
+      label: "発注書管理",
+      url: "/admin/purchase-orders",
+    },
+    {
       label: "経営分析",
       url: "/admin/analytics",
     },
