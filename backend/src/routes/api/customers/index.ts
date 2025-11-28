@@ -217,5 +217,234 @@ customers.delete("/:id", adminAuth, async (c) => {
   return c.json({ message: "得意先を削除しました" });
 });
 
+// CSVエクスポート
+customers.get("/export/csv", adminAuth, async (c) => {
+  const shopId = c.get("shopId");
+
+  const { data, error } = await supabase
+    .from("customers")
+    .select("*")
+    .eq("shop_id", shopId)
+    .order("company_name");
+
+  if (error) {
+    return c.json({ error: "得意先の取得に失敗しました" }, 500);
+  }
+
+  // CSVヘッダー（パスワードハッシュは除外）
+  const headers = ["id", "company_name", "login_id", "email", "phone", "address", "billing_type"];
+  const csvLines = [headers.join(",")];
+
+  // データ行
+  (data || []).forEach((customer) => {
+    const row = headers.map((header) => {
+      const value = customer[header];
+      if (value === null || value === undefined) {
+        return "";
+      }
+      const strValue = String(value);
+      if (strValue.includes(",") || strValue.includes("\n") || strValue.includes("\"")) {
+        return `"${strValue.replace(/"/g, '""')}"`;
+      }
+      return strValue;
+    });
+    csvLines.push(row.join(","));
+  });
+
+  const csv = csvLines.join("\n");
+
+  c.header("Content-Type", "text/csv; charset=utf-8");
+  c.header("Content-Disposition", `attachment; filename="customers_${new Date().toISOString().split("T")[0]}.csv"`);
+
+  return c.body(csv);
+});
+
+// CSVインポート
+customers.post("/import/csv", adminAuth, async (c) => {
+  try {
+    const shopId = c.get("shopId");
+    const body = await c.req.json();
+    const { csvData } = body;
+
+    if (!csvData || typeof csvData !== "string") {
+      return c.json({ error: "CSVデータが必要です" }, 400);
+    }
+
+    // CSVをパース
+    const lines = csvData.split("\n").filter((line) => line.trim());
+    if (lines.length < 2) {
+      return c.json({ error: "CSVにデータがありません" }, 400);
+    }
+
+    // ヘッダー解析
+    const headerLine = lines[0];
+    const headers = parseCSVLine(headerLine);
+
+    // 必須カラムチェック
+    const requiredColumns = ["company_name", "login_id"];
+    const missingColumns = requiredColumns.filter((col) => !headers.includes(col));
+    if (missingColumns.length > 0) {
+      return c.json({ error: `必須カラムがありません: ${missingColumns.join(", ")}` }, 400);
+    }
+
+    // データ行を処理
+    const results = {
+      success: 0,
+      errors: [] as string[],
+      created: 0,
+      updated: 0,
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      try {
+        const values = parseCSVLine(line);
+        const row: Record<string, string> = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || "";
+        });
+
+        const companyName = row.company_name?.trim();
+        const loginId = row.login_id?.trim();
+        const email = row.email?.trim() || null;
+        const phone = row.phone?.trim() || null;
+        const address = row.address?.trim() || null;
+        const billingType = row.billing_type?.trim() || "immediate";
+        const password = row.password?.trim();
+
+        if (!companyName) {
+          results.errors.push(`行 ${i + 1}: 会社名が空です`);
+          continue;
+        }
+        if (!loginId) {
+          results.errors.push(`行 ${i + 1}: ログインIDが空です`);
+          continue;
+        }
+
+        // IDが指定されている場合は更新、なければ新規作成
+        const existingId = row.id?.trim();
+
+        if (existingId) {
+          // 更新
+          const updateData: any = {
+            company_name: companyName,
+            login_id: loginId,
+            email,
+            phone,
+            address,
+            billing_type: billingType,
+          };
+
+          // パスワードが指定されていれば更新
+          if (password && password.length >= 8) {
+            updateData.password_hash = await hash(password);
+          }
+
+          const { error } = await supabase
+            .from("customers")
+            .update(updateData)
+            .eq("id", existingId)
+            .eq("shop_id", shopId);
+
+          if (error) {
+            results.errors.push(`行 ${i + 1}: 更新に失敗しました - ${error.message}`);
+          } else {
+            results.updated++;
+            results.success++;
+          }
+        } else {
+          // 新規作成 - パスワードが必要
+          if (!password || password.length < 8) {
+            results.errors.push(`行 ${i + 1}: 新規登録にはパスワード（8文字以上）が必要です`);
+            continue;
+          }
+
+          // ログインID重複チェック
+          const { data: duplicate } = await supabase
+            .from("customers")
+            .select("id")
+            .eq("shop_id", shopId)
+            .eq("login_id", loginId)
+            .single();
+
+          if (duplicate) {
+            results.errors.push(`行 ${i + 1}: ログインIDが既に使用されています`);
+            continue;
+          }
+
+          const passwordHash = await hash(password);
+
+          const { error } = await supabase
+            .from("customers")
+            .insert({
+              shop_id: shopId,
+              company_name: companyName,
+              login_id: loginId,
+              email,
+              phone,
+              address,
+              billing_type: billingType,
+              password_hash: passwordHash,
+            });
+
+          if (error) {
+            results.errors.push(`行 ${i + 1}: 登録に失敗しました - ${error.message}`);
+          } else {
+            results.created++;
+            results.success++;
+          }
+        }
+      } catch (err) {
+        results.errors.push(`行 ${i + 1}: パースエラー`);
+      }
+    }
+
+    return c.json({
+      message: `インポート完了: 成功 ${results.success}件 (新規 ${results.created}件, 更新 ${results.updated}件)`,
+      results,
+    });
+  } catch (error) {
+    console.error("CSV import error:", error);
+    return c.json({ error: "CSVインポートに失敗しました" }, 500);
+  }
+});
+
+// CSVの行をパースする関数
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (inQuotes) {
+      if (char === '"' && nextChar === '"') {
+        current += '"';
+        i++;
+      } else if (char === '"') {
+        inQuotes = false;
+      } else {
+        current += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ",") {
+        result.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+  }
+  result.push(current.trim());
+
+  return result;
+}
+
 export default customers;
 
