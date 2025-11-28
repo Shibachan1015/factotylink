@@ -141,8 +141,52 @@ export default function AdminOrdersPage() {
     />
   );
 
+  const exportCsv = () => {
+    const params = new URLSearchParams();
+    if (statusFilter.length > 0) {
+      params.append("status", statusFilter[0]);
+    }
+    if (customerFilter) {
+      params.append("customer_id", customerFilter);
+    }
+    if (startDate) {
+      params.append("start_date", startDate);
+    }
+    if (endDate) {
+      params.append("end_date", endDate);
+    }
+
+    const token = localStorage.getItem("adminToken");
+    fetch(`/api/admin/orders/export/csv?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => res.blob())
+      .then((blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `orders_${new Date().toISOString().split("T")[0]}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+      })
+      .catch((err) => {
+        console.error("CSV export failed:", err);
+        alert("CSVエクスポートに失敗しました");
+      });
+  };
+
   return (
-    <Page title="受注管理">
+    <Page
+      title="受注管理"
+      secondaryActions={[
+        {
+          content: "CSVエクスポート",
+          onAction: exportCsv,
+        },
+      ]}
+    >
       <Card>
         {filterControl}
         <ResourceList

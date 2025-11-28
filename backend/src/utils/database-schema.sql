@@ -198,3 +198,32 @@ CREATE INDEX IF NOT EXISTS idx_purchase_orders_supplier_id ON purchase_orders(su
 CREATE INDEX IF NOT EXISTS idx_purchase_order_items_purchase_order_id ON purchase_order_items(purchase_order_id);
 CREATE INDEX IF NOT EXISTS idx_ai_reports_shop_id ON ai_reports(shop_id);
 
+-- customer_prices（得意先別価格）
+CREATE TABLE IF NOT EXISTS customer_prices (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  product_id BIGINT NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  price DECIMAL(10, 2) NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(customer_id, product_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_customer_prices_customer_id ON customer_prices(customer_id);
+CREATE INDEX IF NOT EXISTS idx_customer_prices_product_id ON customer_prices(product_id);
+
+-- product_categories（商品カテゴリ）
+CREATE TABLE IF NOT EXISTS product_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id UUID NOT NULL REFERENCES shops(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  sort_order INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(shop_id, name)
+);
+
+-- products テーブルにカテゴリカラム追加
+ALTER TABLE products ADD COLUMN IF NOT EXISTS category_id UUID REFERENCES product_categories(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS idx_product_categories_shop_id ON product_categories(shop_id);
+

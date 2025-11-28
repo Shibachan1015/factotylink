@@ -111,6 +111,10 @@ app.route("/api/admin/suppliers", suppliersRoutes);
 import purchaseOrdersRoutes from "./routes/api/purchase-orders/index.ts";
 app.route("/api/admin/purchase-orders", purchaseOrdersRoutes);
 
+// 得意先別価格ルート
+import customerPricesRoutes from "./routes/api/customer-prices/index.ts";
+app.route("/api/admin/customer-prices", customerPricesRoutes);
+
 const port = parseInt(Deno.env.get("PORT") || "8000");
 console.log(`🚀 Server running on http://localhost:${port}`);
 

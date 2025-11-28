@@ -10,6 +10,7 @@ import AdminOrdersPage from "./pages/admin/orders/index.tsx";
 import AdminOrderDetailPage from "./pages/admin/orders/[id].tsx";
 import AdminCustomersPage from "./pages/admin/customers/index.tsx";
 import CustomerFormPage from "./pages/admin/customers/[id].tsx";
+import CustomerPricesPage from "./pages/admin/customers/prices.tsx";
 import AdminInventoryPage from "./pages/admin/inventory/index.tsx";
 import AdminMaterialsPage from "./pages/admin/materials/index.tsx";
 import MaterialFormPage from "./pages/admin/materials/[id].tsx";
@@ -115,6 +116,14 @@ function App() {
           element={
             <ProtectedRoute requireAdmin>
               <CustomerFormPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/customers/:id/prices"
+          element={
+            <ProtectedRoute requireAdmin>
+              <CustomerPricesPage />
             </ProtectedRoute>
           }
         />

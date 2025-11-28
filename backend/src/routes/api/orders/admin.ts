@@ -213,5 +213,108 @@ adminOrders.patch("/:id/status", adminAuth, async (c) => {
   }
 });
 
+// 注文一覧CSVエクスポート
+adminOrders.get("/export/csv", adminAuth, async (c) => {
+  const shopId = c.req.query("shop_id");
+  const status = c.req.query("status");
+  const customerId = c.req.query("customer_id");
+  const startDate = c.req.query("start_date");
+  const endDate = c.req.query("end_date");
+
+  let query = supabase
+    .from("orders")
+    .select(`
+      *,
+      order_items (*),
+      customers (id, company_name)
+    `)
+    .order("ordered_at", { ascending: false });
+
+  if (shopId) {
+    query = query.eq("shop_id", shopId);
+  }
+  if (status) {
+    query = query.eq("status", status);
+  }
+  if (customerId) {
+    query = query.eq("customer_id", customerId);
+  }
+  if (startDate) {
+    query = query.gte("ordered_at", startDate);
+  }
+  if (endDate) {
+    query = query.lte("ordered_at", endDate);
+  }
+
+  const { data: orders, error } = await query;
+
+  if (error) {
+    return c.json({ error: "注文の取得に失敗しました" }, 500);
+  }
+
+  // CSV生成
+  const statusLabels: Record<string, string> = {
+    new: "新規",
+    manufacturing: "製造中",
+    completed: "製造完了",
+    shipped: "出荷済み",
+  };
+
+  const csvRows: string[] = [];
+  // ヘッダー
+  csvRows.push([
+    "注文番号",
+    "注文日",
+    "得意先",
+    "ステータス",
+    "商品名",
+    "SKU",
+    "数量",
+    "単価",
+    "小計",
+    "合計金額",
+    "出荷日",
+    "備考"
+  ].join(","));
+
+  // データ行
+  for (const order of orders || []) {
+    const customerName = (order.customers as any)?.company_name || "-";
+    const orderedAt = new Date(order.ordered_at).toLocaleDateString("ja-JP");
+    const shippedAt = order.shipped_at
+      ? new Date(order.shipped_at).toLocaleDateString("ja-JP")
+      : "-";
+    const statusLabel = statusLabels[order.status] || order.status;
+
+    for (const item of order.order_items || []) {
+      csvRows.push([
+        `"${order.order_number}"`,
+        `"${orderedAt}"`,
+        `"${customerName}"`,
+        `"${statusLabel}"`,
+        `"${item.product_name}"`,
+        `"${item.sku || "-"}"`,
+        item.quantity,
+        item.unit_price,
+        item.subtotal,
+        order.total_amount,
+        `"${shippedAt}"`,
+        `"${(order.notes || "").replace(/"/g, '""')}"`,
+      ].join(","));
+    }
+  }
+
+  const csv = csvRows.join("\n");
+  // BOMを追加してExcelで文字化けしないようにする
+  const bom = "\uFEFF";
+
+  return new Response(bom + csv, {
+    headers: {
+      "Content-Type": "text/csv; charset=utf-8",
+      "Content-Disposition": `attachment; filename="orders_${new Date().toISOString().split("T")[0]}.csv"`,
+    },
+  });
+});
+
 export default adminOrders;
 

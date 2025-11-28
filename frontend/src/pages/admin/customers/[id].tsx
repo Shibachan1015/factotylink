@@ -9,6 +9,7 @@ import {
   Button,
   Banner,
   BlockStack,
+  InlineStack,
 } from "@shopify/polaris";
 
 interface CustomerFormData {
@@ -207,9 +208,16 @@ export default function CustomerFormPage() {
               autoComplete="new-password"
               requiredIndicator={isNew}
             />
-            <Button variant="primary" onClick={handleSubmit} loading={loading}>
-              {isNew ? "登録" : "更新"}
-            </Button>
+            <InlineStack gap="200">
+              <Button variant="primary" onClick={handleSubmit} loading={loading}>
+                {isNew ? "登録" : "更新"}
+              </Button>
+              {!isNew && (
+                <Button onClick={() => navigate(`/admin/customers/${id}/prices`)}>
+                  価格設定
+                </Button>
+              )}
+            </InlineStack>
           </FormLayout>
         </BlockStack>
       </Card>
