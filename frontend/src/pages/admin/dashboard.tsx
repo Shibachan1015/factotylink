@@ -121,6 +121,12 @@ export default function AdminDashboard() {
               <Button onClick={() => navigate("/admin/materials")} fullWidth>
                 材料在庫管理
               </Button>
+              <Button onClick={() => navigate("/admin/bom")} fullWidth>
+                BOM（部品表）管理
+              </Button>
+              <Button onClick={() => navigate("/admin/analytics")} fullWidth variant="primary">
+                経営分析
+              </Button>
             </BlockStack>
           </Card>
         </Layout.Section>

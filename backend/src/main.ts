@@ -87,6 +87,14 @@ import materialTransactionsRoutes from "./routes/api/materials/transactions.ts";
 app.route("/api/admin/materials", materialsRoutes);
 app.route("/api/admin/materials/transactions", materialTransactionsRoutes);
 
+// BOM（部品表）管理ルート
+import bomRoutes from "./routes/api/bom/index.ts";
+app.route("/api/admin/bom", bomRoutes);
+
+// 経営分析ルート
+import analyticsRoutes from "./routes/api/analytics/index.ts";
+app.route("/api/admin/analytics", analyticsRoutes);
+
 const port = parseInt(Deno.env.get("PORT") || "8000");
 console.log(`🚀 Server running on http://localhost:${port}`);
 

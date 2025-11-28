@@ -65,6 +65,14 @@ export default function Layout({ children, isAdmin = false }: LayoutProps) {
       label: "材料在庫管理",
       url: "/admin/materials",
     },
+    {
+      label: "BOM管理",
+      url: "/admin/bom",
+    },
+    {
+      label: "経営分析",
+      url: "/admin/analytics",
+    },
   ];
 
   const navigationItems = isAdmin ? adminNavigationItems : customerNavigationItems;
