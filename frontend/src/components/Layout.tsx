@@ -27,6 +27,10 @@ export default function Layout({ children, isAdmin = false }: LayoutProps) {
 
   const customerNavigationItems = [
     {
+      label: "ダッシュボード",
+      url: "/customer/dashboard",
+    },
+    {
       label: "商品一覧",
       url: "/customer/products",
     },

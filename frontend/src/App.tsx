@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import CustomerLogin from "./pages/customer/login.tsx";
 import CustomerRegister from "./pages/customer/register.tsx";
+import CustomerDashboard from "./pages/customer/dashboard.tsx";
 import ProductsPage from "./pages/customer/products/index.tsx";
 import ProductDetailPage from "./pages/customer/products/[id].tsx";
 import CartPage from "./pages/customer/cart.tsx";
@@ -42,6 +43,22 @@ function App() {
         <Route path="/customer/register" element={<CustomerRegister />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/register" element={<AdminRegister />} />
+        <Route
+          path="/customer"
+          element={
+            <ProtectedRoute>
+              <CustomerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/customer/dashboard"
+          element={
+            <ProtectedRoute>
+              <CustomerDashboard />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/customer/products"
           element={
