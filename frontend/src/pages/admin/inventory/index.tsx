@@ -105,6 +105,7 @@ export default function AdminInventoryPage() {
             placeholder="商品名で検索"
             clearButton
             onClearButtonClick={() => setSearch("")}
+            autoComplete="off"
           />
           <ResourceList
             resourceName={{ singular: "商品", plural: "商品" }}
@@ -115,12 +116,12 @@ export default function AdminInventoryPage() {
                 product;
               const media = image_url ? (
                 <Thumbnail source={image_url} alt={title} />
-              ) : null;
+              ) : undefined;
 
               const isEditing = editingId === id;
 
               return (
-                <ResourceItem id={String(id)} media={media}>
+                <ResourceItem id={String(id)} media={media} onClick={() => {}}>
                   <InlineStack align="space-between" blockAlign="center" gap="400">
                     <div style={{flexGrow: 1}}>
                       <Text variant="bodyMd" fontWeight="bold" as="h3">
@@ -141,7 +142,7 @@ export default function AdminInventoryPage() {
                             type="number"
                             value={editQuantity}
                             onChange={setEditQuantity}
-                            autoFocus
+                            autoComplete="off"
                           />
                           <Button onClick={() => handleSave(id)}>保存</Button>
                           <Button onClick={handleCancel}>キャンセル</Button>
@@ -150,7 +151,7 @@ export default function AdminInventoryPage() {
                         <Badge
                           tone={inventory_quantity > 0 ? "success" : "critical"}
                         >
-                          在庫: {inventory_quantity}
+                          {`在庫: ${inventory_quantity}`}
                         </Badge>
                       )}
                     </div>

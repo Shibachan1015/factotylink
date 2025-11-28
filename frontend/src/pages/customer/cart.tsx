@@ -64,7 +64,7 @@ export default function CartPage() {
     return (
       <Page title="カート">
         <Card>
-          <Text>カートは空です</Text>
+          <Text as="p">カートは空です</Text>
           <Button onClick={() => navigate("/customer/products")}>
             商品一覧に戻る
           </Button>
@@ -95,12 +95,13 @@ export default function CartPage() {
             renderItem={(item) => {
               const media = item.image_url ? (
                 <Thumbnail source={item.image_url} alt={item.product_name} />
-              ) : null;
+              ) : undefined;
 
               return (
                 <ResourceItem
                   id={String(item.product_id)}
                   media={media}
+                  onClick={() => {}}
                 >
                   <InlineStack align="space-between" blockAlign="center" gap="400">
                     <div style={{flexGrow: 1}}>
@@ -161,6 +162,7 @@ export default function CartPage() {
             onChange={setNotes}
             multiline={3}
             placeholder="注文に関する備考があれば入力してください"
+            autoComplete="off"
           />
           <Card>
             <InlineStack align="space-between">

@@ -11,7 +11,7 @@ import {
   ChoiceList,
   InlineStack,
 } from "@shopify/polaris";
-import type { OrderStatus } from "../../../../types.ts";
+import type { OrderStatus } from "../../../types.ts";
 
 interface Order {
   id: string;

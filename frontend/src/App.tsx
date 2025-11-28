@@ -17,6 +17,8 @@ import MaterialTransactionsPage from "./pages/admin/materials/transactions.tsx";
 import AdminDashboard from "./pages/admin/dashboard.tsx";
 import AdminLogin from "./pages/admin/login.tsx";
 import AdminRegister from "./pages/admin/register.tsx";
+import AdminProductsPage from "./pages/admin/products/index.tsx";
+import AdminProductFormPage from "./pages/admin/products/[id].tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 
 function App() {
@@ -137,6 +139,22 @@ function App() {
           element={
             <ProtectedRoute requireAdmin>
               <MaterialTransactionsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/products"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminProductsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/products/:id"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminProductFormPage />
             </ProtectedRoute>
           }
         />

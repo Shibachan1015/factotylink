@@ -1,15 +1,20 @@
 // API呼び出しユーティリティ
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE_URL = (import.meta as unknown as { env: Record<string, string> }).env?.VITE_API_BASE_URL || "";
+
+// トークンを取得（管理者トークン優先）
+function getAuthToken(): string | null {
+  return localStorage.getItem("adminToken") || localStorage.getItem("customerToken");
+}
 
 export async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const token = localStorage.getItem("customerToken");
-  const headers: HeadersInit = {
+  const token = getAuthToken();
+  const headers: Record<string, string> = {
     "Content-Type": "application/json",
-    ...options.headers,
+    ...(options.headers as Record<string, string>),
   };
 
   if (token) {
@@ -55,7 +60,16 @@ export async function apiPatch<T>(
   });
 }
 
+export async function apiPut<T>(
+  endpoint: string,
+  data?: unknown,
+): Promise<T> {
+  return apiRequest<T>(endpoint, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function apiDelete<T>(endpoint: string): Promise<T> {
   return apiRequest<T>(endpoint, { method: "DELETE" });
 }
-

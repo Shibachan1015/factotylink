@@ -49,9 +49,11 @@ app.route("/api/auth/admin", adminAuthRoutes);
 import productsRoutes from "./routes/api/products/index.ts";
 import productsSyncRoutes from "./routes/api/products/sync.ts";
 import productsInventoryRoutes from "./routes/api/products/inventory.ts";
+import adminProductsRoutes from "./routes/api/products/admin.ts";
 app.route("/api/products", productsRoutes);
 app.route("/api/products/sync", productsSyncRoutes);
 app.route("/api/products/inventory", productsInventoryRoutes);
+app.route("/api/admin/products", adminProductsRoutes);
 
 // 注文ルート
 import ordersRoutes from "./routes/api/orders/index.ts";

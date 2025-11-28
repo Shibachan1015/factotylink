@@ -120,10 +120,7 @@ export default function AdminCustomersPage() {
                   <div>
                     <Button
                       tone="critical"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(customer.id);
-                      }}
+                      onClick={() => handleDelete(customer.id)}
                     >
                       削除
                     </Button>

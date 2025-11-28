@@ -135,10 +135,7 @@ export default function AdminMaterialsPage() {
                   <div>
                     <Button
                       tone="critical"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDelete(material.id);
-                      }}
+                      onClick={() => handleDelete(material.id)}
                     >
                       削除
                     </Button>

@@ -79,7 +79,7 @@ export default function ProductDetailPage() {
   };
 
   if (loading) {
-    return <Page title="商品詳細"><Card><Text>読み込み中...</Text></Card></Page>;
+    return <Page title="商品詳細"><Card><Text as="p">読み込み中...</Text></Card></Page>;
   }
 
   if (error || !product) {
@@ -108,7 +108,7 @@ export default function ProductDetailPage() {
                 {product.title}
               </Text>
               {product.sku && (
-                <Text variant="bodyMd" tone="subdued">
+                <Text variant="bodyMd" tone="subdued" as="p">
                   SKU: {product.sku}
                 </Text>
               )}
@@ -118,7 +118,7 @@ export default function ProductDetailPage() {
               <Badge
                 tone={product.inventory_quantity > 0 ? "success" : "critical"}
               >
-                在庫: {product.inventory_quantity}
+                {`在庫: ${product.inventory_quantity}`}
               </Badge>
               <InlineStack gap="200" blockAlign="center">
                 <Button

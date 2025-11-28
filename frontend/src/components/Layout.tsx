@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useState, useCallback } from "react";
 import { Frame, Navigation, TopBar } from "@shopify/polaris";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth.ts";
@@ -12,6 +12,18 @@ export default function Layout({ children, isAdmin = false }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { logout } = useAuth();
+  const [userMenuActive, setUserMenuActive] = useState(false);
+  const [mobileNavigationActive, setMobileNavigationActive] = useState(false);
+
+  const toggleUserMenuActive = useCallback(
+    () => setUserMenuActive((active) => !active),
+    [],
+  );
+
+  const toggleMobileNavigationActive = useCallback(
+    () => setMobileNavigationActive((active) => !active),
+    [],
+  );
 
   const customerNavigationItems = [
     {
@@ -42,6 +54,10 @@ export default function Layout({ children, isAdmin = false }: LayoutProps) {
       url: "/admin/customers",
     },
     {
+      label: "商品管理",
+      url: "/admin/products",
+    },
+    {
       label: "在庫管理",
       url: "/admin/inventory",
     },
@@ -53,42 +69,57 @@ export default function Layout({ children, isAdmin = false }: LayoutProps) {
 
   const navigationItems = isAdmin ? adminNavigationItems : customerNavigationItems;
 
+  const userMenuMarkup = (
+    <TopBar.UserMenu
+      actions={[
+        {
+          items: [
+            {
+              content: "ログアウト",
+              onAction: logout,
+            },
+          ],
+        },
+      ]}
+      name=""
+      initials="U"
+      open={userMenuActive}
+      onToggle={toggleUserMenuActive}
+    />
+  );
+
   const topBarMarkup = (
     <TopBar
       showNavigationToggle
-      userMenu={
-        <TopBar.UserMenu
-          actions={[
-            {
-              items: [
-                {
-                  content: "ログアウト",
-                  onAction: logout,
-                },
-              ],
-            },
-          ]}
-        />
-      }
+      userMenu={userMenuMarkup}
+      onNavigationToggle={toggleMobileNavigationActive}
     />
+  );
+
+  const navigationMarkup = (
+    <Navigation location={location.pathname}>
+      <Navigation.Section
+        items={navigationItems.map((item) => ({
+          label: item.label,
+          url: item.url,
+          onClick: () => {
+            navigate(item.url);
+            setMobileNavigationActive(false);
+          },
+          selected: location.pathname === item.url,
+        }))}
+      />
+    </Navigation>
   );
 
   return (
     <Frame
-      navigation={
-        <Navigation
-          location={location.pathname}
-          navigation={navigationItems.map((item) => ({
-            label: item.label,
-            url: item.url,
-            onClick: () => navigate(item.url),
-          }))}
-        />
-      }
+      navigation={navigationMarkup}
       topBar={topBarMarkup}
+      showMobileNavigation={mobileNavigationActive}
+      onNavigationDismiss={toggleMobileNavigationActive}
     >
       {children}
     </Frame>
   );
 }
-

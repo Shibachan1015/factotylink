@@ -168,15 +168,16 @@ export default function MaterialTransactionsPage() {
               <TextField
                 label="数量"
                 type="number"
-                step="0.001"
                 value={quantity}
                 onChange={setQuantity}
+                autoComplete="off"
               />
               <TextField
                 label="備考"
                 value={notes}
                 onChange={setNotes}
                 multiline={2}
+                autoComplete="off"
               />
               <Button
                 variant="primary"
@@ -208,7 +209,7 @@ export default function MaterialTransactionsPage() {
                 loading={loading}
                 renderItem={(transaction) => {
                   return (
-                    <ResourceItem id={transaction.id}>
+                    <ResourceItem id={transaction.id} onClick={() => {}}>
                       <InlineStack align="space-between" blockAlign="center" gap="400">
                         <div style={{flexGrow: 1}}>
                           <Text variant="bodyMd" fontWeight="bold" as="h3">

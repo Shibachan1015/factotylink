@@ -10,7 +10,6 @@ import {
   Filters,
   ChoiceList,
   TextField,
-  Button,
   BlockStack,
   InlineStack,
 } from "@shopify/polaris";
@@ -118,12 +117,14 @@ export default function AdminOrdersPage() {
                 type="date"
                 value={startDate}
                 onChange={setStartDate}
+                autoComplete="off"
               />
               <TextField
                 label="終了日"
                 type="date"
                 value={endDate}
                 onChange={setEndDate}
+                autoComplete="off"
               />
             </BlockStack>
           ),

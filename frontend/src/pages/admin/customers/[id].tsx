@@ -8,22 +8,18 @@ import {
   Select,
   Button,
   Banner,
+  BlockStack,
 } from "@shopify/polaris";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
-const customerSchema = z.object({
-  company_name: z.string().min(1, "会社名は必須です"),
-  address: z.string().optional(),
-  phone: z.string().optional(),
-  email: z.string().email("有効なメールアドレスを入力してください").optional().or(z.literal("")),
-  billing_type: z.enum(["immediate", "credit"]),
-  login_id: z.string().min(1, "ログインIDは必須です"),
-  password: z.string().min(8, "パスワードは8文字以上必要です").optional().or(z.literal("")),
-});
-
-type CustomerFormData = z.infer<typeof customerSchema>;
+interface CustomerFormData {
+  company_name: string;
+  address: string;
+  phone: string;
+  email: string;
+  billing_type: "immediate" | "credit";
+  login_id: string;
+  password: string;
+}
 
 export default function CustomerFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -32,18 +28,17 @@ export default function CustomerFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-  } = useForm<CustomerFormData>({
-    resolver: zodResolver(customerSchema),
-    defaultValues: {
-      billing_type: "immediate",
-    },
+  const [formData, setFormData] = useState<CustomerFormData>({
+    company_name: "",
+    address: "",
+    phone: "",
+    email: "",
+    billing_type: "immediate",
+    login_id: "",
+    password: "",
   });
+
+  const [errors, setErrors] = useState<Partial<Record<keyof CustomerFormData, string>>>({});
 
   useEffect(() => {
     if (!isNew && id) {
@@ -58,19 +53,44 @@ export default function CustomerFormPage() {
 
       if (response.ok && data.customer) {
         const customer = data.customer;
-        setValue("company_name", customer.company_name);
-        setValue("address", customer.address || "");
-        setValue("phone", customer.phone || "");
-        setValue("email", customer.email || "");
-        setValue("billing_type", customer.billing_type);
-        setValue("login_id", customer.login_id);
+        setFormData({
+          company_name: customer.company_name || "",
+          address: customer.address || "",
+          phone: customer.phone || "",
+          email: customer.email || "",
+          billing_type: customer.billing_type || "immediate",
+          login_id: customer.login_id || "",
+          password: "",
+        });
       }
     } catch (err) {
       setError("得意先の取得中にエラーが発生しました");
     }
   };
 
-  const onSubmit = async (data: CustomerFormData) => {
+  const validate = (): boolean => {
+    const newErrors: Partial<Record<keyof CustomerFormData, string>> = {};
+
+    if (!formData.company_name.trim()) {
+      newErrors.company_name = "会社名は必須です";
+    }
+    if (!formData.login_id.trim()) {
+      newErrors.login_id = "ログインIDは必須です";
+    }
+    if (isNew && formData.password.length < 8) {
+      newErrors.password = "パスワードは8文字以上必要です";
+    }
+    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      newErrors.email = "有効なメールアドレスを入力してください";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+
     setError(null);
     setLoading(true);
 
@@ -80,18 +100,16 @@ export default function CustomerFormPage() {
         : `/api/admin/customers/${id}`;
       const method = isNew ? "POST" : "PATCH";
 
-      const payload: any = { ...data };
-      if (!isNew && !data.password) {
-        delete payload.password;
-      }
-      if (!data.address) delete payload.address;
-      if (!data.phone) delete payload.phone;
-      if (!data.email) delete payload.email;
+      const payload: Record<string, unknown> = {
+        company_name: formData.company_name,
+        billing_type: formData.billing_type,
+        login_id: formData.login_id,
+      };
 
-      if (isNew) {
-        // 新規作成時はshop_idが必要（簡易実装として固定値）
-        payload.shop_id = "00000000-0000-0000-0000-000000000000";
-      }
+      if (formData.address) payload.address = formData.address;
+      if (formData.phone) payload.phone = formData.phone;
+      if (formData.email) payload.email = formData.email;
+      if (formData.password) payload.password = formData.password;
 
       const response = await fetch(url, {
         method,
@@ -113,39 +131,55 @@ export default function CustomerFormPage() {
     }
   };
 
+  const handleChange = (field: keyof CustomerFormData) => (value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
   return (
     <Page
       title={isNew ? "得意先新規登録" : "得意先編集"}
       backAction={{ onAction: () => navigate("/admin/customers") }}
     >
       <Card>
-        <FormLayout>
-          {error && (
-            <Banner status="critical" onDismiss={() => setError(null)}>
-              {error}
-            </Banner>
-          )}
-          <form onSubmit={handleSubmit(onSubmit)}>
+        <BlockStack gap="400">
+          <FormLayout>
+            {error && (
+              <Banner tone="critical" onDismiss={() => setError(null)}>
+                {error}
+              </Banner>
+            )}
             <TextField
               label="会社名"
-              {...register("company_name")}
-              error={errors.company_name?.message}
+              value={formData.company_name}
+              onChange={handleChange("company_name")}
+              error={errors.company_name}
+              autoComplete="organization"
+              requiredIndicator
             />
             <TextField
               label="住所"
-              {...register("address")}
-              error={errors.address?.message}
+              value={formData.address}
+              onChange={handleChange("address")}
+              error={errors.address}
+              autoComplete="street-address"
             />
             <TextField
               label="電話番号"
-              {...register("phone")}
-              error={errors.phone?.message}
+              value={formData.phone}
+              onChange={handleChange("phone")}
+              error={errors.phone}
+              autoComplete="tel"
             />
             <TextField
               label="メールアドレス"
               type="email"
-              {...register("email")}
-              error={errors.email?.message}
+              value={formData.email}
+              onChange={handleChange("email")}
+              error={errors.email}
+              autoComplete="email"
             />
             <Select
               label="請求方式"
@@ -153,27 +187,32 @@ export default function CustomerFormPage() {
                 { label: "都度", value: "immediate" },
                 { label: "掛売", value: "credit" },
               ]}
-              value={watch("billing_type")}
-              onChange={(value) => setValue("billing_type", value as "immediate" | "credit")}
+              value={formData.billing_type}
+              onChange={(value) => handleChange("billing_type")(value)}
             />
             <TextField
               label="ログインID"
-              {...register("login_id")}
-              error={errors.login_id?.message}
+              value={formData.login_id}
+              onChange={handleChange("login_id")}
+              error={errors.login_id}
+              autoComplete="username"
+              requiredIndicator
             />
             <TextField
               label={isNew ? "パスワード" : "パスワード（変更する場合のみ）"}
               type="password"
-              {...register("password")}
-              error={errors.password?.message}
+              value={formData.password}
+              onChange={handleChange("password")}
+              error={errors.password}
+              autoComplete="new-password"
+              requiredIndicator={isNew}
             />
-            <Button primary submit loading={loading}>
+            <Button variant="primary" onClick={handleSubmit} loading={loading}>
               {isNew ? "登録" : "更新"}
             </Button>
-          </form>
-        </FormLayout>
+          </FormLayout>
+        </BlockStack>
       </Card>
     </Page>
   );
 }
-

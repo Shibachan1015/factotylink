@@ -29,7 +29,7 @@ export class ErrorBoundary extends Component<Props, State> {
       return (
         <Page title="エラーが発生しました">
           <Card>
-            <Banner status="critical">
+            <Banner tone="critical">
               <p>予期しないエラーが発生しました。</p>
               {this.state.error && (
                 <p style={{ fontSize: "12px", marginTop: "8px" }}>

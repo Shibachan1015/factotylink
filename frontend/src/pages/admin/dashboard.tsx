@@ -51,7 +51,7 @@ export default function AdminDashboard() {
   };
 
   if (loading) {
-    return <Page title="ダッシュボード"><Card><Text>読み込み中...</Text></Card></Page>;
+    return <Page title="ダッシュボード"><Card><Text as="p">読み込み中...</Text></Card></Page>;
   }
 
   return (
@@ -67,31 +67,31 @@ export default function AdminDashboard() {
                 <InlineStack gap="400" wrap>
                   <Card>
                     <BlockStack gap="200">
-                      <Text variant="bodyMd" tone="subdued">総注文数</Text>
+                      <Text variant="bodyMd" tone="subdued" as="p">総注文数</Text>
                       <Text variant="heading2xl" as="p">{stats.totalOrders}</Text>
                     </BlockStack>
                   </Card>
                   <Card>
                     <BlockStack gap="200">
-                      <Text variant="bodyMd" tone="subdued">新規</Text>
+                      <Text variant="bodyMd" tone="subdued" as="p">新規</Text>
                       <Text variant="heading2xl" as="p">{stats.newOrders}</Text>
                     </BlockStack>
                   </Card>
                   <Card>
                     <BlockStack gap="200">
-                      <Text variant="bodyMd" tone="subdued">製造中</Text>
+                      <Text variant="bodyMd" tone="subdued" as="p">製造中</Text>
                       <Text variant="heading2xl" as="p">{stats.manufacturingOrders}</Text>
                     </BlockStack>
                   </Card>
                   <Card>
                     <BlockStack gap="200">
-                      <Text variant="bodyMd" tone="subdued">製造完了</Text>
+                      <Text variant="bodyMd" tone="subdued" as="p">製造完了</Text>
                       <Text variant="heading2xl" as="p">{stats.completedOrders}</Text>
                     </BlockStack>
                   </Card>
                   <Card>
                     <BlockStack gap="200">
-                      <Text variant="bodyMd" tone="subdued">出荷済み</Text>
+                      <Text variant="bodyMd" tone="subdued" as="p">出荷済み</Text>
                       <Text variant="heading2xl" as="p">{stats.shippedOrders}</Text>
                     </BlockStack>
                   </Card>
@@ -111,6 +111,9 @@ export default function AdminDashboard() {
               </Button>
               <Button onClick={() => navigate("/admin/customers")} fullWidth>
                 得意先管理
+              </Button>
+              <Button onClick={() => navigate("/admin/products")} fullWidth>
+                商品管理
               </Button>
               <Button onClick={() => navigate("/admin/inventory")} fullWidth>
                 在庫管理

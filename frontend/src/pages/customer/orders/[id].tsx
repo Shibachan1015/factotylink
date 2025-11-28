@@ -11,7 +11,7 @@ import {
   BlockStack,
   InlineStack,
 } from "@shopify/polaris";
-import type { OrderStatus } from "../../../../types.ts";
+import type { OrderStatus } from "../../../types.ts";
 
 interface Order {
   id: string;
@@ -79,7 +79,7 @@ export default function OrderDetailPage() {
   };
 
   if (loading) {
-    return <Page title="注文詳細"><Card><Text>読み込み中...</Text></Card></Page>;
+    return <Page title="注文詳細"><Card><Text as="p">読み込み中...</Text></Card></Page>;
   }
 
   if (error || !order) {

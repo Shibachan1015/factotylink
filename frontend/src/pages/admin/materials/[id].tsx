@@ -7,21 +7,17 @@ import {
   TextField,
   Button,
   Banner,
+  BlockStack,
 } from "@shopify/polaris";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 
-const materialSchema = z.object({
-  name: z.string().min(1, "材料名は必須です"),
-  code: z.string().optional(),
-  unit: z.string().min(1, "単位は必須です"),
-  current_stock: z.number().min(0, "在庫数は0以上である必要があります"),
-  safety_stock: z.number().min(0, "安全在庫は0以上である必要があります"),
-  unit_price: z.number().min(0, "単価は0以上である必要があります").optional(),
-});
-
-type MaterialFormData = z.infer<typeof materialSchema>;
+interface MaterialFormData {
+  name: string;
+  code: string;
+  unit: string;
+  current_stock: string;
+  safety_stock: string;
+  unit_price: string;
+}
 
 export default function MaterialFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -30,19 +26,16 @@ export default function MaterialFormPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-    setValue,
-    watch,
-  } = useForm<MaterialFormData>({
-    resolver: zodResolver(materialSchema),
-    defaultValues: {
-      current_stock: 0,
-      safety_stock: 0,
-    },
+  const [formData, setFormData] = useState<MaterialFormData>({
+    name: "",
+    code: "",
+    unit: "",
+    current_stock: "0",
+    safety_stock: "0",
+    unit_price: "",
   });
+
+  const [errors, setErrors] = useState<Partial<Record<keyof MaterialFormData, string>>>({});
 
   useEffect(() => {
     if (!isNew && id) {
@@ -57,19 +50,54 @@ export default function MaterialFormPage() {
 
       if (response.ok && data.material) {
         const material = data.material;
-        setValue("name", material.name);
-        setValue("code", material.code || "");
-        setValue("unit", material.unit);
-        setValue("current_stock", material.current_stock);
-        setValue("safety_stock", material.safety_stock);
-        setValue("unit_price", material.unit_price || undefined);
+        setFormData({
+          name: material.name || "",
+          code: material.code || "",
+          unit: material.unit || "",
+          current_stock: String(material.current_stock ?? 0),
+          safety_stock: String(material.safety_stock ?? 0),
+          unit_price: material.unit_price ? String(material.unit_price) : "",
+        });
       }
     } catch (err) {
       setError("材料の取得中にエラーが発生しました");
     }
   };
 
-  const onSubmit = async (data: MaterialFormData) => {
+  const validate = (): boolean => {
+    const newErrors: Partial<Record<keyof MaterialFormData, string>> = {};
+
+    if (!formData.name.trim()) {
+      newErrors.name = "材料名は必須です";
+    }
+    if (!formData.unit.trim()) {
+      newErrors.unit = "単位は必須です";
+    }
+
+    const currentStock = parseFloat(formData.current_stock);
+    if (isNaN(currentStock) || currentStock < 0) {
+      newErrors.current_stock = "在庫数は0以上である必要があります";
+    }
+
+    const safetyStock = parseFloat(formData.safety_stock);
+    if (isNaN(safetyStock) || safetyStock < 0) {
+      newErrors.safety_stock = "安全在庫は0以上である必要があります";
+    }
+
+    if (formData.unit_price) {
+      const unitPrice = parseFloat(formData.unit_price);
+      if (isNaN(unitPrice) || unitPrice < 0) {
+        newErrors.unit_price = "単価は0以上である必要があります";
+      }
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async () => {
+    if (!validate()) return;
+
     setError(null);
     setLoading(true);
 
@@ -79,13 +107,15 @@ export default function MaterialFormPage() {
         : `/api/admin/materials/${id}`;
       const method = isNew ? "POST" : "PATCH";
 
-      const payload: any = { ...data };
-      if (!payload.code) delete payload.code;
-      if (payload.unit_price === undefined) delete payload.unit_price;
+      const payload: Record<string, unknown> = {
+        name: formData.name,
+        unit: formData.unit,
+        current_stock: parseFloat(formData.current_stock),
+        safety_stock: parseFloat(formData.safety_stock),
+      };
 
-      if (isNew) {
-        payload.shop_id = "00000000-0000-0000-0000-000000000000"; // 簡易実装
-      }
+      if (formData.code) payload.code = formData.code;
+      if (formData.unit_price) payload.unit_price = parseFloat(formData.unit_price);
 
       const response = await fetch(url, {
         method,
@@ -107,63 +137,80 @@ export default function MaterialFormPage() {
     }
   };
 
+  const handleChange = (field: keyof MaterialFormData) => (value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: undefined }));
+    }
+  };
+
   return (
     <Page
       title={isNew ? "材料新規登録" : "材料編集"}
       backAction={{ onAction: () => navigate("/admin/materials") }}
     >
       <Card>
-        <FormLayout>
-          {error && (
-            <Banner status="critical" onDismiss={() => setError(null)}>
-              {error}
-            </Banner>
-          )}
-          <form onSubmit={handleSubmit(onSubmit)}>
+        <BlockStack gap="400">
+          <FormLayout>
+            {error && (
+              <Banner tone="critical" onDismiss={() => setError(null)}>
+                {error}
+              </Banner>
+            )}
             <TextField
               label="材料名"
-              {...register("name")}
-              error={errors.name?.message}
+              value={formData.name}
+              onChange={handleChange("name")}
+              error={errors.name}
+              autoComplete="off"
+              requiredIndicator
             />
             <TextField
               label="コード"
-              {...register("code")}
-              error={errors.code?.message}
+              value={formData.code}
+              onChange={handleChange("code")}
+              error={errors.code}
+              autoComplete="off"
             />
             <TextField
               label="単位"
-              {...register("unit")}
-              error={errors.unit?.message}
+              value={formData.unit}
+              onChange={handleChange("unit")}
+              error={errors.unit}
               helpText="例: kg, 本, L, m"
+              autoComplete="off"
+              requiredIndicator
             />
             <TextField
               label="現在在庫"
               type="number"
-              step="0.001"
-              {...register("current_stock", { valueAsNumber: true })}
-              error={errors.current_stock?.message}
+              value={formData.current_stock}
+              onChange={handleChange("current_stock")}
+              error={errors.current_stock}
+              autoComplete="off"
             />
             <TextField
               label="安全在庫"
               type="number"
-              step="0.001"
-              {...register("safety_stock", { valueAsNumber: true })}
-              error={errors.safety_stock?.message}
+              value={formData.safety_stock}
+              onChange={handleChange("safety_stock")}
+              error={errors.safety_stock}
+              autoComplete="off"
             />
             <TextField
               label="単価"
               type="number"
-              step="0.01"
-              {...register("unit_price", { valueAsNumber: true })}
-              error={errors.unit_price?.message}
+              value={formData.unit_price}
+              onChange={handleChange("unit_price")}
+              error={errors.unit_price}
+              autoComplete="off"
             />
-            <Button primary submit loading={loading}>
+            <Button variant="primary" onClick={handleSubmit} loading={loading}>
               {isNew ? "登録" : "更新"}
             </Button>
-          </form>
-        </FormLayout>
+          </FormLayout>
+        </BlockStack>
       </Card>
     </Page>
   );
 }
-

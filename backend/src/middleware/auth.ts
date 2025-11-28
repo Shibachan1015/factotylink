@@ -16,15 +16,30 @@ const jwtKey = await crypto.subtle.importKey(
   ["verify"]
 );
 
-// 管理者認証ミドルウェア（Shopify OAuthセッション確認）
+// 管理者認証ミドルウェア（JWT検証）
 export async function adminAuth(c: Context, next: Next) {
-  // 簡易実装: セッション管理は後で実装
-  // 本番環境では適切なセッション管理を実装してください
-  const sessionId = c.req.header("X-Session-ID");
-  if (!sessionId) {
-    return c.json({ error: "認証が必要です" }, 401);
+  const authHeader = c.req.header("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return c.json({ error: "認証トークンが必要です" }, 401);
   }
-  await next();
+
+  const token = authHeader.substring(7);
+
+  try {
+    const payload = await verify(token, jwtKey);
+
+    // 管理者ロールの確認
+    if (payload.role !== "admin") {
+      return c.json({ error: "管理者権限が必要です" }, 403);
+    }
+
+    c.set("shopId", payload.shopId as string);
+    c.set("loginId", payload.loginId as string);
+    await next();
+  } catch (error) {
+    console.error("Admin JWT verification error:", error);
+    return c.json({ error: "無効なトークンです" }, 401);
+  }
 }
 
 // 得意先認証ミドルウェア（JWT検証）
