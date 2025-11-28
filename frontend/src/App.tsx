@@ -30,6 +30,7 @@ import AdminPurchaseOrdersPage from "./pages/admin/purchase-orders/index.tsx";
 import PurchaseOrderFormPage from "./pages/admin/purchase-orders/[id].tsx";
 import AdminCategoriesPage from "./pages/admin/categories/index.tsx";
 import MonthlyInvoicePage from "./pages/admin/invoices/monthly.tsx";
+import BatchLabelsPage from "./pages/admin/documents/labels.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 
 function App() {
@@ -254,6 +255,14 @@ function App() {
           element={
             <ProtectedRoute requireAdmin>
               <MonthlyInvoicePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/documents/labels"
+          element={
+            <ProtectedRoute requireAdmin>
+              <BatchLabelsPage />
             </ProtectedRoute>
           }
         />
