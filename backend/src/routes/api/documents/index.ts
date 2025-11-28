@@ -5,8 +5,10 @@ import {
   generateInvoiceHTML,
   generateLabelHTML,
   generateManufacturingOrderHTML,
+  generateMonthlyInvoiceHTML,
   type DocumentData,
   type ManufacturingOrderData,
+  type MonthlyInvoiceData,
 } from "../../../services/pdf-service.ts";
 import { adminAuth, customerAuth } from "../../../middleware/auth.ts";
 
@@ -306,6 +308,212 @@ documents.get("/manufacturing-order/:orderId", adminAuth, async (c) => {
   } catch (error) {
     console.error("Generate manufacturing order error:", error);
     return c.json({ error: "製造指示書生成中にエラーが発生しました" }, 500);
+  }
+});
+
+// 月次請求書一覧を取得（対象得意先リスト）
+documents.get("/monthly-invoice/list", adminAuth, async (c) => {
+  const shopId = c.req.query("shop_id");
+  const year = parseInt(c.req.query("year") || new Date().getFullYear().toString());
+  const month = parseInt(c.req.query("month") || (new Date().getMonth() + 1).toString());
+
+  if (!shopId) {
+    return c.json({ error: "shop_idパラメータが必要です" }, 400);
+  }
+
+  // 対象月の開始日と終了日
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0, 23, 59, 59);
+
+  // 対象月に出荷済みの注文がある得意先を取得
+  const { data: orders, error } = await supabase
+    .from("orders")
+    .select(`
+      customer_id,
+      total_amount,
+      customers (
+        id,
+        company_name,
+        billing_type
+      )
+    `)
+    .eq("shop_id", shopId)
+    .eq("status", "shipped")
+    .gte("shipped_at", startDate.toISOString())
+    .lte("shipped_at", endDate.toISOString());
+
+  if (error) {
+    console.error("Monthly invoice list error:", error);
+    return c.json({ error: "対象得意先の取得に失敗しました" }, 500);
+  }
+
+  // 得意先ごとに集計
+  const customerSummary: Record<string, {
+    customer_id: string;
+    company_name: string;
+    billing_type: string;
+    order_count: number;
+    total_amount: number;
+  }> = {};
+
+  (orders || []).forEach((order) => {
+    const customer = order.customers as {
+      id: string;
+      company_name: string;
+      billing_type: string;
+    };
+
+    if (!customer) return;
+
+    if (!customerSummary[customer.id]) {
+      customerSummary[customer.id] = {
+        customer_id: customer.id,
+        company_name: customer.company_name,
+        billing_type: customer.billing_type,
+        order_count: 0,
+        total_amount: 0,
+      };
+    }
+
+    customerSummary[customer.id].order_count += 1;
+    customerSummary[customer.id].total_amount += order.total_amount || 0;
+  });
+
+  const customers = Object.values(customerSummary).sort(
+    (a, b) => b.total_amount - a.total_amount
+  );
+
+  return c.json({
+    year,
+    month,
+    period_label: `${year}年${month}月`,
+    customers,
+    total_customers: customers.length,
+    total_amount: customers.reduce((sum, c) => sum + c.total_amount, 0),
+  });
+});
+
+// 月次請求書を生成（特定の得意先）
+documents.get("/monthly-invoice/:customerId", adminAuth, async (c) => {
+  try {
+    const customerId = c.req.param("customerId");
+    const shopId = c.req.query("shop_id");
+    const year = parseInt(c.req.query("year") || new Date().getFullYear().toString());
+    const month = parseInt(c.req.query("month") || (new Date().getMonth() + 1).toString());
+
+    if (!shopId) {
+      return c.json({ error: "shop_idパラメータが必要です" }, 400);
+    }
+
+    // 対象月の開始日と終了日
+    const startDate = new Date(year, month - 1, 1);
+    const endDate = new Date(year, month, 0, 23, 59, 59);
+
+    // 得意先情報を取得
+    const { data: customer, error: customerError } = await supabase
+      .from("customers")
+      .select("*")
+      .eq("id", customerId)
+      .single();
+
+    if (customerError || !customer) {
+      return c.json({ error: "得意先が見つかりません" }, 404);
+    }
+
+    // 対象月の出荷済み注文を取得
+    const { data: orders, error: ordersError } = await supabase
+      .from("orders")
+      .select(`
+        id,
+        order_number,
+        ordered_at,
+        shipped_at,
+        total_amount,
+        order_items (
+          product_name,
+          quantity,
+          unit_price,
+          subtotal
+        )
+      `)
+      .eq("shop_id", shopId)
+      .eq("customer_id", customerId)
+      .eq("status", "shipped")
+      .gte("shipped_at", startDate.toISOString())
+      .lte("shipped_at", endDate.toISOString())
+      .order("shipped_at", { ascending: true });
+
+    if (ordersError) {
+      console.error("Monthly invoice orders error:", ordersError);
+      return c.json({ error: "注文の取得に失敗しました" }, 500);
+    }
+
+    if (!orders || orders.length === 0) {
+      return c.json({ error: "対象期間に出荷済みの注文がありません" }, 404);
+    }
+
+    // ショップ設定を取得
+    const { data: shopSettings } = await supabase
+      .from("shop_settings")
+      .select("*")
+      .eq("shop_id", shopId)
+      .single();
+
+    const shop = {
+      company_name: shopSettings?.company_name || "店舗名未設定",
+      address: shopSettings?.address || "",
+      phone: shopSettings?.phone || "",
+      invoice_number: shopSettings?.invoice_number || "",
+    };
+
+    // 支払期限（翌月末）
+    const dueDate = new Date(year, month, 0);
+    dueDate.setMonth(dueDate.getMonth() + 1);
+
+    // 月次請求書データを構築
+    const invoiceData: MonthlyInvoiceData = {
+      shop: shop as MonthlyInvoiceData["shop"],
+      customer: {
+        id: customer.id,
+        company_name: customer.company_name,
+        address: customer.address,
+        phone: customer.phone,
+        billing_type: customer.billing_type,
+      },
+      period: {
+        year,
+        month,
+        label: `${year}年${month}月`,
+      },
+      orders: orders.map((order) => ({
+        order_number: order.order_number,
+        ordered_at: order.ordered_at,
+        shipped_at: order.shipped_at!,
+        total_amount: order.total_amount,
+        items: (order.order_items as Array<{
+          product_name: string;
+          quantity: number;
+          unit_price: number;
+          subtotal: number;
+        }>).map((item) => ({
+          product_name: item.product_name,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          subtotal: item.subtotal,
+        })),
+      })),
+      summary: {
+        total_amount: orders.reduce((sum, o) => sum + (o.total_amount || 0), 0),
+        order_count: orders.length,
+      },
+      dueDate: dueDate.toLocaleDateString("ja-JP"),
+    };
+
+    const html = generateMonthlyInvoiceHTML(invoiceData);
+    return c.html(html);
+  } catch (error) {
+    console.error("Generate monthly invoice error:", error);
+    return c.json({ error: "月次請求書生成中にエラーが発生しました" }, 500);
   }
 });
 

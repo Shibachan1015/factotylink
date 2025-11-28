@@ -82,6 +82,10 @@ export default function Layout({ children, isAdmin = false }: LayoutProps) {
       url: "/admin/purchase-orders",
     },
     {
+      label: "月次請求書",
+      url: "/admin/invoices/monthly",
+    },
+    {
       label: "経営分析",
       url: "/admin/analytics",
     },

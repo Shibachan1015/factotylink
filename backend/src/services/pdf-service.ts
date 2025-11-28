@@ -886,6 +886,217 @@ export function generateSalesReportHTML(data: SalesReportData): string {
   `.trim();
 }
 
+// 月次請求書データ型
+export interface MonthlyInvoiceData {
+  shop: Shop;
+  customer: {
+    id: string;
+    company_name: string;
+    address: string | null;
+    phone: string | null;
+    billing_type: string;
+  };
+  period: {
+    year: number;
+    month: number;
+    label: string;
+  };
+  orders: Array<{
+    order_number: string;
+    ordered_at: string;
+    shipped_at: string;
+    total_amount: number;
+    items: Array<{
+      product_name: string;
+      quantity: number;
+      unit_price: number;
+      subtotal: number;
+    }>;
+  }>;
+  summary: {
+    total_amount: number;
+    order_count: number;
+  };
+  dueDate: string;
+}
+
+// 月次請求書HTML生成
+export function generateMonthlyInvoiceHTML(data: MonthlyInvoiceData): string {
+  const { shop, customer, period, orders, summary, dueDate } = data;
+  const invoiceDate = new Date().toLocaleDateString("ja-JP");
+  const invoiceNumber = `MI-${period.year}${String(period.month).padStart(2, "0")}-${customer.id.slice(0, 8).toUpperCase()}`;
+
+  const formatCurrency = (amount: number) => `¥${amount.toLocaleString()}`;
+
+  return `
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>月次請求書 - ${period.label} - ${customer.company_name}</title>
+  <style>
+    body { font-family: "Hiragino Sans", "Meiryo", sans-serif; padding: 20px; color: #333; font-size: 12px; }
+    .header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+    .shop-info { text-align: right; font-size: 11px; }
+    .title { font-size: 24px; font-weight: bold; text-align: center; margin: 20px 0; border-bottom: 3px double #333; padding-bottom: 10px; }
+
+    .customer-box { border: 2px solid #333; padding: 15px; margin-bottom: 20px; max-width: 350px; }
+    .customer-box .name { font-size: 18px; font-weight: bold; margin-bottom: 10px; }
+
+    .summary-box { background: #f8f9fa; border: 1px solid #ddd; padding: 20px; margin-bottom: 30px; }
+    .summary-box .total { font-size: 28px; font-weight: bold; text-align: center; margin: 10px 0; }
+    .summary-box .details { display: flex; justify-content: space-between; margin-top: 15px; }
+
+    .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    .info-table td { padding: 8px; border: 1px solid #ddd; }
+    .info-table td:first-child { background: #f5f5f5; width: 150px; font-weight: bold; }
+
+    .order-section { margin-bottom: 20px; page-break-inside: avoid; }
+    .order-header { background: #e8e8e8; padding: 8px; font-weight: bold; border: 1px solid #ddd; border-bottom: none; }
+
+    .items-table { width: 100%; border-collapse: collapse; }
+    .items-table th, .items-table td { padding: 8px; border: 1px solid #ddd; text-align: left; }
+    .items-table th { background: #f5f5f5; font-weight: bold; }
+    .items-table .number { text-align: right; }
+    .items-table .subtotal { background: #fafafa; }
+
+    .total-section { margin-top: 30px; text-align: right; }
+    .total-box { display: inline-block; border: 2px solid #333; padding: 15px 30px; }
+    .total-label { font-size: 14px; margin-bottom: 5px; }
+    .total-amount { font-size: 24px; font-weight: bold; }
+
+    .payment-info { margin-top: 30px; padding: 15px; border: 1px solid #ddd; background: #fffde7; }
+    .payment-info h3 { margin: 0 0 10px 0; font-size: 14px; }
+
+    .stamp-area { margin-top: 40px; display: flex; justify-content: flex-end; gap: 30px; }
+    .stamp-box { text-align: center; }
+    .stamp-box .label { font-size: 10px; margin-bottom: 3px; }
+    .stamp-box .box { width: 60px; height: 60px; border: 1px solid #333; }
+
+    .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #999; }
+
+    @media print {
+      body { padding: 10px; }
+      .order-section { page-break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="customer-box">
+      <div class="name">${customer.company_name} 御中</div>
+      ${customer.address ? `<div>${customer.address}</div>` : ""}
+      ${customer.phone ? `<div>TEL: ${customer.phone}</div>` : ""}
+    </div>
+    <div class="shop-info">
+      <div style="font-weight: bold; font-size: 14px;">${shop.company_name}</div>
+      <div>${shop.address || ""}</div>
+      <div>TEL: ${shop.phone || ""}</div>
+      ${shop.invoice_number ? `<div>インボイス登録番号: ${shop.invoice_number}</div>` : ""}
+    </div>
+  </div>
+
+  <h1 class="title">月 次 請 求 書</h1>
+
+  <table class="info-table">
+    <tr>
+      <td>請求書番号</td>
+      <td>${invoiceNumber}</td>
+      <td>発行日</td>
+      <td>${invoiceDate}</td>
+    </tr>
+    <tr>
+      <td>対象期間</td>
+      <td>${period.label}</td>
+      <td>お支払期限</td>
+      <td style="color: #d32f2f; font-weight: bold;">${dueDate}</td>
+    </tr>
+  </table>
+
+  <div class="summary-box">
+    <div style="text-align: center; font-size: 14px;">ご請求金額</div>
+    <div class="total">${formatCurrency(summary.total_amount)}</div>
+    <div class="details">
+      <div>対象注文数: ${summary.order_count}件</div>
+      <div>支払方法: ${customer.billing_type === "credit" ? "掛売（月末締め翌月末払い）" : "都度払い"}</div>
+    </div>
+  </div>
+
+  <h3>注文明細</h3>
+
+  ${orders.map((order) => `
+    <div class="order-section">
+      <div class="order-header">
+        注文番号: ${order.order_number} | 注文日: ${new Date(order.ordered_at).toLocaleDateString("ja-JP")} | 出荷日: ${new Date(order.shipped_at).toLocaleDateString("ja-JP")}
+      </div>
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th>商品名</th>
+            <th class="number" style="width: 80px;">数量</th>
+            <th class="number" style="width: 100px;">単価</th>
+            <th class="number" style="width: 120px;">小計</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${order.items.map((item) => `
+            <tr>
+              <td>${item.product_name}</td>
+              <td class="number">${item.quantity}</td>
+              <td class="number">${formatCurrency(item.unit_price)}</td>
+              <td class="number">${formatCurrency(item.subtotal)}</td>
+            </tr>
+          `).join("")}
+          <tr class="subtotal">
+            <td colspan="3" style="text-align: right; font-weight: bold;">注文小計:</td>
+            <td class="number" style="font-weight: bold;">${formatCurrency(order.total_amount)}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  `).join("")}
+
+  <div class="total-section">
+    <div class="total-box">
+      <div class="total-label">ご請求金額合計</div>
+      <div class="total-amount">${formatCurrency(summary.total_amount)}</div>
+    </div>
+  </div>
+
+  <div class="payment-info">
+    <h3>お振込先</h3>
+    <p>
+      銀行名: ○○銀行 ○○支店<br>
+      口座種別: 普通<br>
+      口座番号: 1234567<br>
+      口座名義: ${shop.company_name}
+    </p>
+    <p style="color: #666; font-size: 11px;">
+      ※ 振込手数料はお客様のご負担となります。<br>
+      ※ お支払期限までにお振込みをお願いいたします。
+    </p>
+  </div>
+
+  <div class="stamp-area">
+    <div class="stamp-box">
+      <div class="label">承認</div>
+      <div class="box"></div>
+    </div>
+    <div class="stamp-box">
+      <div class="label">担当</div>
+      <div class="box"></div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <p>この請求書は ${shop.company_name} より発行されました。</p>
+    <p>Generated by FactoryLink BtoB Platform</p>
+  </div>
+</body>
+</html>
+  `.trim();
+}
+
 // 帳票番号生成
 export function generateDocumentNumber(
   type: "delivery_note" | "invoice" | "label" | "purchase_order",
