@@ -21,6 +21,8 @@ interface Product {
   title: string;
   sku: string | null;
   price: number;
+  original_price?: number;
+  has_custom_price?: boolean;
   inventory_quantity: number;
   image_url: string | null;
 }
@@ -118,9 +120,23 @@ export default function ProductsPage() {
                           SKU: {sku}
                         </Text>
                       )}
-                      <Text variant="bodySm" as="p">
-                        ¥{price.toLocaleString()}
-                      </Text>
+                      {product.has_custom_price && product.original_price ? (
+                        <InlineStack gap="100" blockAlign="center">
+                          <Text variant="bodyMd" fontWeight="bold" as="p" tone="success">
+                            ¥{price.toLocaleString()}
+                          </Text>
+                          <Text variant="bodySm" as="span" tone="subdued">
+                            <span style={{ textDecoration: "line-through" }}>
+                              ¥{product.original_price.toLocaleString()}
+                            </span>
+                          </Text>
+                          <Badge tone="success">特別価格</Badge>
+                        </InlineStack>
+                      ) : (
+                        <Text variant="bodySm" as="p">
+                          ¥{price.toLocaleString()}
+                        </Text>
+                      )}
                       <Badge
                         tone={inventory_quantity > 0 ? "success" : "critical"}
                       >

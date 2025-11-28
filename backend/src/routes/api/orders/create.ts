@@ -47,20 +47,36 @@ createOrder.post("/", customerAuth, async (c) => {
       return c.json({ error: "商品情報の取得に失敗しました" }, 500);
     }
 
-    // 注文明細を計算
+    // 得意先別価格を取得
+    const { data: customerPrices } = await supabase
+      .from("customer_prices")
+      .select("product_id, price")
+      .eq("customer_id", customerId)
+      .in("product_id", productIds);
+
+    // 得意先別価格をマップに変換
+    const customerPriceMap: Record<number, number> = {};
+    (customerPrices || []).forEach((cp) => {
+      customerPriceMap[cp.product_id] = cp.price;
+    });
+
+    // 注文明細を計算（得意先別価格があれば適用）
     const orderItems = items.map((item) => {
       const product = products.find((p) => p.id === item.product_id);
       if (!product) {
         throw new Error(`商品ID ${item.product_id} が見つかりません`);
       }
 
+      // 得意先別価格があればそちらを使用
+      const unitPrice = customerPriceMap[product.id] ?? product.price;
+
       return {
         product_id: product.id,
         product_name: product.title,
         sku: product.sku,
         quantity: item.quantity,
-        unit_price: product.price,
-        subtotal: product.price * item.quantity,
+        unit_price: unitPrice,
+        subtotal: unitPrice * item.quantity,
       };
     });
 
