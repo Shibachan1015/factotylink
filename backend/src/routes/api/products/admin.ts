@@ -184,4 +184,205 @@ adminProducts.delete("/:id", adminAuth, async (c) => {
   return c.json({ message: "商品を削除しました" });
 });
 
+// CSVエクスポート
+adminProducts.get("/export/csv", adminAuth, async (c) => {
+  const shopId = c.get("shopId");
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("*")
+    .eq("shop_id", shopId)
+    .order("title");
+
+  if (error) {
+    return c.json({ error: "商品の取得に失敗しました" }, 500);
+  }
+
+  // CSVヘッダー
+  const headers = ["id", "title", "sku", "price", "inventory_quantity", "description", "image_url"];
+  const csvLines = [headers.join(",")];
+
+  // データ行
+  (data || []).forEach((product) => {
+    const row = headers.map((header) => {
+      const value = product[header];
+      if (value === null || value === undefined) {
+        return "";
+      }
+      // カンマや改行を含む場合はダブルクォートで囲む
+      const strValue = String(value);
+      if (strValue.includes(",") || strValue.includes("\n") || strValue.includes("\"")) {
+        return `"${strValue.replace(/"/g, '""')}"`;
+      }
+      return strValue;
+    });
+    csvLines.push(row.join(","));
+  });
+
+  const csv = csvLines.join("\n");
+
+  c.header("Content-Type", "text/csv; charset=utf-8");
+  c.header("Content-Disposition", `attachment; filename="products_${new Date().toISOString().split("T")[0]}.csv"`);
+
+  return c.body(csv);
+});
+
+// CSVインポート
+adminProducts.post("/import/csv", adminAuth, async (c) => {
+  try {
+    const shopId = c.get("shopId");
+    const body = await c.req.json();
+    const { csvData } = body;
+
+    if (!csvData || typeof csvData !== "string") {
+      return c.json({ error: "CSVデータが必要です" }, 400);
+    }
+
+    // CSVをパース
+    const lines = csvData.split("\n").filter((line) => line.trim());
+    if (lines.length < 2) {
+      return c.json({ error: "CSVにデータがありません" }, 400);
+    }
+
+    // ヘッダー解析
+    const headerLine = lines[0];
+    const headers = parseCSVLine(headerLine);
+
+    // 必須カラムチェック
+    const requiredColumns = ["title", "price"];
+    const missingColumns = requiredColumns.filter((col) => !headers.includes(col));
+    if (missingColumns.length > 0) {
+      return c.json({ error: `必須カラムがありません: ${missingColumns.join(", ")}` }, 400);
+    }
+
+    // データ行を処理
+    const results = {
+      success: 0,
+      errors: [] as string[],
+      created: 0,
+      updated: 0,
+    };
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      try {
+        const values = parseCSVLine(line);
+        const row: Record<string, string> = {};
+        headers.forEach((header, index) => {
+          row[header] = values[index] || "";
+        });
+
+        const title = row.title?.trim();
+        const sku = row.sku?.trim() || null;
+        const price = parseFloat(row.price) || 0;
+        const inventoryQuantity = parseInt(row.inventory_quantity) || 0;
+        const description = row.description?.trim() || null;
+        const imageUrl = row.image_url?.trim() || null;
+
+        if (!title) {
+          results.errors.push(`行 ${i + 1}: 商品名が空です`);
+          continue;
+        }
+
+        // IDが指定されている場合は更新、なければ新規作成
+        const existingId = row.id ? parseInt(row.id) : null;
+
+        if (existingId) {
+          // 更新
+          const { error } = await supabase
+            .from("products")
+            .update({
+              title,
+              sku,
+              price,
+              inventory_quantity: inventoryQuantity,
+              description,
+              image_url: imageUrl,
+              synced_at: new Date().toISOString(),
+            })
+            .eq("id", existingId)
+            .eq("shop_id", shopId);
+
+          if (error) {
+            results.errors.push(`行 ${i + 1}: 更新に失敗しました - ${error.message}`);
+          } else {
+            results.updated++;
+            results.success++;
+          }
+        } else {
+          // 新規作成
+          const productId = Date.now() + i; // ユニークなIDを生成
+
+          const { error } = await supabase
+            .from("products")
+            .insert({
+              id: productId,
+              shop_id: shopId,
+              title,
+              sku,
+              price,
+              inventory_quantity: inventoryQuantity,
+              description,
+              image_url: imageUrl,
+            });
+
+          if (error) {
+            results.errors.push(`行 ${i + 1}: 登録に失敗しました - ${error.message}`);
+          } else {
+            results.created++;
+            results.success++;
+          }
+        }
+      } catch (err) {
+        results.errors.push(`行 ${i + 1}: パースエラー`);
+      }
+    }
+
+    return c.json({
+      message: `インポート完了: 成功 ${results.success}件 (新規 ${results.created}件, 更新 ${results.updated}件)`,
+      results,
+    });
+  } catch (error) {
+    console.error("CSV import error:", error);
+    return c.json({ error: "CSVインポートに失敗しました" }, 500);
+  }
+});
+
+// CSVの行をパースする関数
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (inQuotes) {
+      if (char === '"' && nextChar === '"') {
+        current += '"';
+        i++; // 次の " をスキップ
+      } else if (char === '"') {
+        inQuotes = false;
+      } else {
+        current += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === ",") {
+        result.push(current.trim());
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+  }
+  result.push(current.trim());
+
+  return result;
+}
+
 export default adminProducts;
