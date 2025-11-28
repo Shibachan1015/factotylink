@@ -95,6 +95,14 @@ app.route("/api/admin/bom", bomRoutes);
 import analyticsRoutes from "./routes/api/analytics/index.ts";
 app.route("/api/admin/analytics", analyticsRoutes);
 
+// 店舗設定ルート
+import settingsRoutes from "./routes/api/settings/index.ts";
+app.route("/api/admin/settings", settingsRoutes);
+
+// AI経営アドバイスルート
+import aiRoutes from "./routes/api/ai/index.ts";
+app.route("/api/admin/ai", aiRoutes);
+
 const port = parseInt(Deno.env.get("PORT") || "8000");
 console.log(`🚀 Server running on http://localhost:${port}`);
 

@@ -21,6 +21,8 @@ import AdminProductsPage from "./pages/admin/products/index.tsx";
 import AdminProductFormPage from "./pages/admin/products/[id].tsx";
 import AdminBomPage from "./pages/admin/bom/index.tsx";
 import AdminAnalyticsPage from "./pages/admin/analytics/index.tsx";
+import AdminAiPage from "./pages/admin/ai/index.tsx";
+import AdminSettingsPage from "./pages/admin/settings/index.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 
 function App() {
@@ -173,6 +175,22 @@ function App() {
           element={
             <ProtectedRoute requireAdmin>
               <AdminAnalyticsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/ai"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminAiPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/settings"
+          element={
+            <ProtectedRoute requireAdmin>
+              <AdminSettingsPage />
             </ProtectedRoute>
           }
         />

@@ -73,6 +73,14 @@ export default function Layout({ children, isAdmin = false }: LayoutProps) {
       label: "経営分析",
       url: "/admin/analytics",
     },
+    {
+      label: "AIアドバイス",
+      url: "/admin/ai",
+    },
+    {
+      label: "設定",
+      url: "/admin/settings",
+    },
   ];
 
   const navigationItems = isAdmin ? adminNavigationItems : customerNavigationItems;

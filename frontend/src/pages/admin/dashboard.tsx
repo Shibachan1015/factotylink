@@ -127,6 +127,12 @@ export default function AdminDashboard() {
               <Button onClick={() => navigate("/admin/analytics")} fullWidth variant="primary">
                 経営分析
               </Button>
+              <Button onClick={() => navigate("/admin/ai")} fullWidth>
+                AIアドバイス
+              </Button>
+              <Button onClick={() => navigate("/admin/settings")} fullWidth>
+                設定
+              </Button>
             </BlockStack>
           </Card>
         </Layout.Section>
