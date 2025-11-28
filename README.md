@@ -20,14 +20,10 @@
 
 ### 1. 環境変数の設定
 
-**重要**: SupabaseのAPIキーが必要です。詳細は `ENV_SETUP.md` を参照してください。
 
 `backend/`ディレクトリに`.env`ファイルを作成し、以下の環境変数を設定してください：
 
-```env
-# Supabase（既に取得済みの情報）
-SUPABASE_URL=https://bqidlvbrnwxczyxoniyj.supabase.co
-SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJxaWRsdmJybnd4Y3p5eG9uaXlqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyOTMwNTUsImV4cCI6MjA3OTg2OTA1NX0.vcVyceYQnWBdYnpGP5q91dHjlSUTD0xwKVzZLvcwUc4
+
 
 # ⚠️ 要取得: Supabase Dashboardから取得してください
 # Settings → API → service_role key
@@ -47,7 +43,7 @@ LINE_CHANNEL_ACCESS_TOKEN=
 JWT_SECRET=your_jwt_secret_key
 PORT=8000
 FRONTEND_URL=http://localhost:5173
-```
+
 
 **Service Role Keyの取得方法**:
 1. [Supabase Dashboard](https://app.supabase.com)にログイン
