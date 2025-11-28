@@ -138,5 +138,67 @@ materials.delete("/:id", adminAuth, async (c) => {
   return c.json({ message: "材料を削除しました" });
 });
 
+// 在庫アラート取得（安全在庫を下回っている材料）
+materials.get("/alerts/low-stock", adminAuth, async (c) => {
+  const shopId = c.req.query("shop_id");
+
+  if (!shopId) {
+    return c.json({ error: "shop_idパラメータが必要です" }, 400);
+  }
+
+  // 現在在庫が安全在庫以下の材料を取得
+  const { data, error } = await supabase
+    .from("materials")
+    .select("*")
+    .eq("shop_id", shopId)
+    .gt("safety_stock", 0); // 安全在庫が設定されている材料のみ
+
+  if (error) {
+    console.error("Low stock alert error:", error);
+    return c.json({ error: "アラートの取得に失敗しました" }, 500);
+  }
+
+  // 在庫が安全在庫以下のものをフィルタリング
+  const lowStockMaterials = (data || []).filter(
+    (m) => m.current_stock <= m.safety_stock
+  );
+
+  // 緊急度で分類
+  const alerts = lowStockMaterials.map((m) => {
+    const ratio = m.safety_stock > 0 ? m.current_stock / m.safety_stock : 1;
+    let severity: "critical" | "warning" | "info";
+
+    if (m.current_stock <= 0) {
+      severity = "critical";
+    } else if (ratio <= 0.5) {
+      severity = "warning";
+    } else {
+      severity = "info";
+    }
+
+    return {
+      ...m,
+      severity,
+      shortage: Math.max(0, m.safety_stock - m.current_stock),
+    };
+  });
+
+  // 緊急度順にソート
+  alerts.sort((a, b) => {
+    const severityOrder = { critical: 0, warning: 1, info: 2 };
+    return severityOrder[a.severity] - severityOrder[b.severity];
+  });
+
+  return c.json({
+    alerts,
+    summary: {
+      total: alerts.length,
+      critical: alerts.filter((a) => a.severity === "critical").length,
+      warning: alerts.filter((a) => a.severity === "warning").length,
+      info: alerts.filter((a) => a.severity === "info").length,
+    },
+  });
+});
+
 export default materials;
 

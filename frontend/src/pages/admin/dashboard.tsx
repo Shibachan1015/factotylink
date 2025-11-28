@@ -8,7 +8,10 @@ import {
   BlockStack,
   InlineStack,
   Button,
+  Banner,
+  Badge,
 } from "@shopify/polaris";
+import { apiGet } from "../../utils/api";
 
 interface DashboardStats {
   totalOrders: number;
@@ -18,13 +21,36 @@ interface DashboardStats {
   shippedOrders: number;
 }
 
+interface StockAlert {
+  id: string;
+  name: string;
+  code: string | null;
+  current_stock: number;
+  safety_stock: number;
+  unit: string;
+  severity: "critical" | "warning" | "info";
+  shortage: number;
+}
+
+interface AlertSummary {
+  total: number;
+  critical: number;
+  warning: number;
+  info: number;
+}
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [stockAlerts, setStockAlerts] = useState<StockAlert[]>([]);
+  const [alertSummary, setAlertSummary] = useState<AlertSummary | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const shopId = localStorage.getItem("shopId") || "default-shop-id";
 
   useEffect(() => {
     fetchStats();
+    fetchStockAlerts();
   }, []);
 
   const fetchStats = async () => {
@@ -50,6 +76,28 @@ export default function AdminDashboard() {
     }
   };
 
+  const fetchStockAlerts = async () => {
+    try {
+      const data = await apiGet<{ alerts: StockAlert[]; summary: AlertSummary }>(
+        `/api/admin/materials/alerts/low-stock?shop_id=${shopId}`
+      );
+      setStockAlerts(data.alerts || []);
+      setAlertSummary(data.summary || null);
+    } catch (error) {
+      console.error("Failed to fetch stock alerts:", error);
+    }
+  };
+
+  const getSeverityBadge = (severity: string) => {
+    const config = {
+      critical: { tone: "critical" as const, label: "緊急" },
+      warning: { tone: "warning" as const, label: "注意" },
+      info: { tone: "info" as const, label: "情報" },
+    };
+    const { tone, label } = config[severity as keyof typeof config] || config.info;
+    return <Badge tone={tone}>{label}</Badge>;
+  };
+
   if (loading) {
     return <Page title="ダッシュボード"><Card><Text as="p">読み込み中...</Text></Card></Page>;
   }
@@ -57,6 +105,44 @@ export default function AdminDashboard() {
   return (
     <Page title="ダッシュボード">
       <Layout>
+        {/* 在庫アラート */}
+        {alertSummary && alertSummary.total > 0 && (
+          <Layout.Section>
+            <Banner
+              title={`在庫アラート: ${alertSummary.total}件`}
+              tone={alertSummary.critical > 0 ? "critical" : alertSummary.warning > 0 ? "warning" : "info"}
+              action={{
+                content: "材料在庫を確認",
+                onAction: () => navigate("/admin/materials"),
+              }}
+            >
+              <BlockStack gap="200">
+                <Text as="p">
+                  安全在庫を下回っている材料があります。
+                  {alertSummary.critical > 0 && ` 緊急: ${alertSummary.critical}件`}
+                  {alertSummary.warning > 0 && ` 注意: ${alertSummary.warning}件`}
+                  {alertSummary.info > 0 && ` 情報: ${alertSummary.info}件`}
+                </Text>
+                {stockAlerts.slice(0, 5).map((alert) => (
+                  <InlineStack key={alert.id} gap="200" blockAlign="center">
+                    {getSeverityBadge(alert.severity)}
+                    <Text as="span" fontWeight="bold">{alert.name}</Text>
+                    <Text as="span" tone="subdued">
+                      現在: {alert.current_stock} {alert.unit} / 安全在庫: {alert.safety_stock} {alert.unit}
+                    </Text>
+                    <Text as="span" tone="critical">
+                      (不足: {alert.shortage} {alert.unit})
+                    </Text>
+                  </InlineStack>
+                ))}
+                {stockAlerts.length > 5 && (
+                  <Text as="p" tone="subdued">他 {stockAlerts.length - 5}件のアラートがあります</Text>
+                )}
+              </BlockStack>
+            </Banner>
+          </Layout.Section>
+        )}
+
         <Layout.Section>
           <Card>
             <BlockStack gap="400">
